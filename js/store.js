@@ -144,6 +144,18 @@ async function creaStoreFirebase() {
     async setMember(tid, uid, patch) { await fb.update(fb.ref(db, `tournaments/${tid}/members/${uid}`), pulito(patch)); },
 
     async leaveTournament(user, tid) { await fb.remove(fb.ref(db, `userTournaments/${user.uid}/${tid}`)); },
+    async removeMember(tid, uid) { await fb.remove(fb.ref(db, `tournaments/${tid}/members/${uid}`)); },
+    async changeCode(tid, vecchio) {
+      let code = null;
+      for (let i = 0; i < 8; i++) {
+        const c = nuovoCodice();
+        try { await fb.set(fb.ref(db, `codes/${c}`), tid); code = c; break; } catch (e) { /* già usato, riprovo */ }
+      }
+      if (!code) throw new Error('Non riesco a creare il nuovo codice, riprova.');
+      await fb.update(fb.ref(db, `tournaments/${tid}/meta`), { code });
+      if (vecchio) await fb.remove(fb.ref(db, `codes/${vecchio}`)).catch(() => {});
+      return code;
+    },
 
     async deleteTournament(user, tid, meta, members) {
       if (!isAdminRole(members, user.uid)) throw new Error('Solo un admin può eliminare il torneo.');
@@ -232,6 +244,11 @@ function creaStoreProva() {
     async updateMeta(tid, patch) { const d = db0(); Object.assign(d.tournaments[tid].meta, pulito(patch)); scrivi(d); },
     async setMember(tid, uid, patch) { const d = db0(); Object.assign(d.tournaments[tid].members[uid], pulito(patch)); scrivi(d); },
     async leaveTournament(user, tid) { const d = db0(); delete (d.userT[user.uid] || {})[tid]; scrivi(d); },
+    async removeMember(tid, uid) { const d = db0(); delete d.tournaments[tid].members[uid]; delete (d.userT[uid] || {})[tid]; scrivi(d); },
+    async changeCode(tid, vecchio) {
+      const d = db0(); let code; do { code = nuovoCodice(); } while (d.codes[code]);
+      d.codes[code] = tid; if (vecchio) delete d.codes[vecchio]; d.tournaments[tid].meta.code = code; scrivi(d); return code;
+    },
     async deleteTournament(user, tid, meta) {
       const d = db0();
       delete d.tournaments[tid];

@@ -1,7 +1,7 @@
-import * as E from './engine.js?v=6';
-import { TEMPI, SISTEMI, TABELLE_VP, RIPOSO, CRITERI_PARITA, FONTI, RIDUZIONE_MAX, SMAZZATE_AMMESSE } from './regolamento.js?v=6';
-import { creaStore } from './store.js?v=6';
-import { OMINO, MARCHIO, ICONE, GOOGLE, SEMI } from './grafica.js?v=6';
+import * as E from './engine.js?v=7';
+import { TEMPI, SISTEMI, TABELLE_VP, RIPOSO, CRITERI_PARITA, FONTI, RIDUZIONE_MAX, SMAZZATE_AMMESSE } from './regolamento.js?v=7';
+import { creaStore } from './store.js?v=7';
+import { OMINO, MARCHIO, ICONE, GOOGLE, SEMI } from './grafica.js?v=7';
 
 // ================= Stato =================
 const S = {
@@ -313,11 +313,12 @@ function bandaTorneo() {
 
 function vistaTorneo() {
   if (!S.data) return `<div class="contenuto senza-nav"><p class="muto">Caricamento torneo...</p></div>`;
-  const tabs = [['turno', 'Turno', ICONE.turno], ['classifica', 'Classifica', ICONE.classifica], ['storico', 'Storico', ICONE.storico], ['altro', 'Altro', ICONE.altro]];
+  const tabs = [['turno', 'Turno', ICONE.turno], ['classifica', 'Classifica', ICONE.classifica], ['storico', 'Storico', ICONE.storico], ['gruppo', 'Gruppo', ICONE.utenti], ['altro', 'Altro', ICONE.altro]];
   let corpo = '';
   if (S.tab === 'turno') corpo = S.data.status === 'setup' ? vistaSetup() : S.data.status === 'finished' ? vistaFinale() : vistaTurno();
   else if (S.tab === 'classifica') corpo = vistaClassifica();
   else if (S.tab === 'storico') corpo = vistaStorico();
+  else if (S.tab === 'gruppo') corpo = vistaGruppo();
   else corpo = vistaAltro();
   return `${testata({ sopra: isAdmin() ? 'Sorelle Burraco - admin' : 'Sorelle Burraco', titolo: S.meta.name || 'Torneo',
       sinistra: `<button class="icona-btn" data-azione="home" aria-label="Torna ai tornei">${ICONE.indietro}</button>`, destra: bottoneProfilo() })}
@@ -602,27 +603,48 @@ function vistaRegolamento() {
     ${card({ testa: 'Fonti', cls: 'crema', corpo: FONTI.map((f) => `<p class="testo-s muto">${f}</p>`).join('') })}`;
 }
 
+// ---------- Gruppo ----------
+function vistaGruppo() {
+  const adm = isAdmin();
+  const owner = S.meta.owner;
+  const membri = Object.entries(S.members).sort((a, b) => (a[0] === owner ? -1 : b[0] === owner ? 1 : 0)
+    || (a[1].role === 'admin' ? -1 : 1) - (b[1].role === 'admin' ? -1 : 1) || (a[1].name || '').localeCompare(b[1].name || '', 'it'));
+  const nAdmin = membri.filter(([, m]) => m.role === 'admin').length;
+  return `
+    ${card({ testa: 'Invita persone', testaCls: 'rossa', corpo: `
+      <p class="testo-s" style="margin:0">Chi riceve il link entra con Google o con l'email e vede tutto dal vivo: tavoli, punteggi, classifica, timer.</p>
+      <button class="btn primario blocco-w" data-azione="condividi-codice">${ICONE.condividi} Invita</button>
+      <p class="muto testo-s" style="margin:-6px 0 0">Si apre la condivisione del telefono: WhatsApp, SMS, mail.</p>
+      <div class="codice-box codice-riga"><span class="cresce"><span class="etichetta">Codice</span><br><span class="codice-m num">${esc(S.meta.code || '')}</span></span>
+        <button class="btn piccolo" data-azione="copia-codice">${ICONE.copia} Copia link</button></div>` })}
+    <div class="sezione"><h2>Persone (${membri.length})</h2><span class="badge chiaro">${nAdmin} admin</span></div>
+    <div class="elenco">${membri.map(([uid, m], i) => {
+      const admin = m.role === 'admin';
+      const tu = uid === S.user.uid;
+      const creatore = uid === owner;
+      return `<section class="card"><div class="corpo">
+        <div class="persona"><span class="n ${admin ? '' : 'giallo'} num">${String(i + 1).padStart(2, '0')}</span>
+          <span class="cresce"><span class="nome">${esc(m.name || 'Senza nome')}${tu ? ' (tu)' : ''}</span><br><span class="etichetta ${admin ? 'blu-t' : 'muto'}">${admin ? 'Admin' : 'Partecipante'}${creatore ? ' - ha creato il torneo' : ''}</span></span></div>
+        ${!adm ? '' : creatore ? `<p class="muto testo-s" style="margin:0">${tu ? 'Hai creato il torneo: resti sempre admin.' : 'Ha creato il torneo: resta sempre admin.'}</p>`
+          : `<div class="griglia-2"><button class="btn piccolo ${admin ? '' : 'giallo'}" data-azione="ruolo" data-uid="${uid}">${admin ? 'Rendi partecipante' : 'Rendi admin'}</button>
+            ${tu ? `<button class="btn piccolo" data-azione="lascia-conferma">${ICONE.esci} Esci</button>` : `<button class="btn piccolo primario" data-azione="apri-rimuovi" data-uid="${uid}">${ICONE.cestino} Rimuovi</button>`}</div>`}
+      </div></section>`;
+    }).join('')}</div>
+    <p class="muto testo-s">Admin: inserisce punti, gestisce coppie e turni. Partecipante: guarda soltanto.${adm ? ' Chi entra con il link parte sempre come partecipante.' : ''}</p>`;
+}
+
 // ---------- Altro ----------
 function vistaAltro() {
   const t = S.data;
   const adm = isAdmin();
-  const membri = Object.entries(S.members).sort((a, b) => (a[1].role === 'admin' ? -1 : 1) - (b[1].role === 'admin' ? -1 : 1) || a[1].name.localeCompare(b[1].name, 'it'));
   const mioPlayer = S.members[S.user.uid]?.player || '';
   const giocatori = Object.entries(t.players).sort((a, b) => a[1].name.localeCompare(b[1].name, 'it'));
   const attive = t.status === 'running' ? E.coppieAttive(t, E.turnoCorrente(t)) : [];
   return `
-    ${card({ testa: 'Invito al torneo', testaCls: 'rossa', destra: '<span class="badge giallo">Attivo</span>', cls: 'blu', corpo: `
-      <div class="riga spazio"><h2 class="titolo">Accesso<br>torneo</h2><span class="mini-omino" style="width:64px;height:64px;background:var(--giallo)">${OMINO}</span></div>
-      <div class="codice-box"><span class="etichetta">Codice invito</span><span class="codice num">${esc(S.meta.code || '')}</span></div>
-      <div class="griglia-2"><button class="btn piccolo" data-azione="copia-codice">${ICONE.copia} Copia link</button><button class="btn primario piccolo" data-azione="condividi-codice">${ICONE.condividi} Condividi</button></div>` })}
     ${card({ testa: 'Chi sei?', corpo: `
       <p class="testo-s muto">Scegli il tuo nome per vedere evidenziati il tuo tavolo e la tua coppia.</p>
       <select class="input" data-campo="mio-player" id="mio-player"><option value="">Non gioco / non indicato</option>
         ${giocatori.map(([id, p]) => `<option value="${id}" ${mioPlayer === id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select>` })}
-    <div class="sezione"><h2>Partecipanti (${membri.length})</h2>${adm ? '<span class="badge chiaro">Almeno un admin</span>' : ''}</div>
-    <div class="elenco">${membri.map(([uid, m], i) => `<div class="voce"><span class="n ${m.role === 'admin' ? '' : 'giallo'} num">${String(i + 1).padStart(2, '0')}</span>
-      <span class="cresce"><span class="nome">${esc(m.name)}${uid === S.user.uid ? ' (tu)' : ''}</span><br><span class="etichetta ${m.role === 'admin' ? 'blu-t' : 'muto'}">${m.role === 'admin' ? 'Admin' : 'Partecipante'}</span></span>
-      ${adm ? `<button class="btn piccolo" data-azione="ruolo" data-uid="${uid}">${m.role === 'admin' ? 'Togli admin' : 'Rendi admin'}</button>` : ''}</div>`).join('')}</div>
     ${adm && t.order.length ? `<div class="sezione"><h2>Coppie e giocatori</h2><span class="badge chiaro">${t.order.length} coppie</span></div>
     <div class="elenco">${t.order.slice().sort((a, b) => testoCoppia(a).localeCompare(testoCoppia(b), 'it')).map((id) => {
       const p = t.pairs[id];
@@ -719,6 +741,7 @@ function renderFoglio() {
       <div class="griglia-2"><button class="btn" data-azione="chiudi-foglio">Annulla</button><button class="btn primario" data-azione="salva-sostituzione">Conferma</button></div>`;
   } else if (f.tipo === 'conferma') {
     c = `<h2 class="titolo">${esc(f.titolo)}</h2><p>${esc(f.testo)}</p>
+      ${f.casella ? `<label class="casella"><input type="checkbox" id="conferma-casella"> ${esc(f.casella)}</label>` : ''}
       ${f.digitare ? `<div class="campo"><label for="conferma-testo">Scrivi ${esc(f.digitare)} per confermare</label><input id="conferma-testo" class="input" autocomplete="off"></div>` : ''}
       <div class="griglia-2"><button class="btn" data-azione="chiudi-foglio">Annulla</button><button class="btn primario" data-azione="conferma-ok">${esc(f.ok || 'Conferma')}</button></div>`;
   }
@@ -990,6 +1013,7 @@ const azioni = {
   async 'conferma-ok'() {
     const f = S.sheet;
     if (f.digitare && val('conferma-testo').trim().toUpperCase() !== f.digitare) return toast(`Scrivi ${f.digitare} per confermare.`);
+    if (f.casella) f.cambia = !!document.getElementById('conferma-casella')?.checked;
     chiudiFoglio();
     if (f.azione === 'chiudi-turno') {
       try { const t = E.chiudiTurno(S.data); salva(t); window.scrollTo(0, 0); } catch (e) { toast(e.message); }
@@ -1000,13 +1024,31 @@ const azioni = {
       if (avv) toast(avv);
     } else if (f.azione === 'elimina') {
       try { const tid = S.tid; const meta = S.meta; const members = S.members; chiudiTorneo(); await S.store.deleteTournament(S.user, tid, meta, members); vai('#/'); toast('Torneo eliminato.'); } catch (e) { toast(erroreLeggibile(e)); }
+    } else if (f.azione === 'rimuovi') {
+      try {
+        await S.store.removeMember(S.tid, f.uid);
+        if (f.cambia) { await S.store.changeCode(S.tid, S.meta.code); toast(`${f.nome} rimosso. Nuovo codice invito creato.`); }
+        else toast(`${f.nome} rimosso.`);
+      } catch (e) { toast(erroreLeggibile(e)); }
+    } else if (f.azione === 'lascia') {
+      azioni.lascia();
     } else if (f.azione === 'ruolo') {
       await S.store.setMember(S.tid, f.uid, { role: f.ruolo }).catch((e) => toast(erroreLeggibile(e)));
     }
   },
+  'apri-rimuovi'(el) {
+    const uid = el.dataset.uid; const nome = S.members[uid]?.name || 'questa persona';
+    if (uid === S.meta.owner) return toast('Chi ha creato il torneo non si può rimuovere.');
+    apriFoglio('conferma', { titolo: `Rimuovere ${nome}?`, testo: `${nome} esce dal torneo e non lo vede più. Se ha ancora il link può rientrare come partecipante: per impedirlo spunta la casella, il codice cambia e il vecchio link smette di funzionare. Chi è già dentro resta dentro.`,
+      casella: 'Cambia anche il codice invito', ok: 'Rimuovi', azione: 'rimuovi', uid, nome });
+  },
+  'lascia-conferma'() {
+    apriFoglio('conferma', { titolo: 'Uscire dal torneo?', testo: 'Il torneo sparisce dalla tua lista. Puoi rientrare con il link o il codice.', ok: 'Esci', azione: 'lascia' });
+  },
   ruolo(el) {
     const uid = el.dataset.uid;
     const m = S.members[uid];
+    if (uid === S.meta.owner && m.role === 'admin') return toast('Chi ha creato il torneo resta sempre admin.');
     const nuovo = m.role === 'admin' ? 'viewer' : 'admin';
     const admin = Object.values(S.members).filter((x) => x.role === 'admin').length;
     if (nuovo === 'viewer' && admin <= 1) return toast('Deve restare almeno un admin.');
@@ -1145,6 +1187,7 @@ function apriTorneo(tid) {
   S.setupTab = 'torneo';
   S.offTorneo = S.store.watch(tid, ({ meta, members, data }) => {
     if (S.tid !== tid) return;
+    if (!members[S.user.uid]) { toast('Non fai più parte di questo torneo.'); chiudiTorneo(); S.store.leaveTournament(S.user, tid).catch(() => {}); vai('#/'); return; }
     S.meta = meta; S.members = members; S.data = E.normalizza(data);
     if (!S.sheet || S.sheet.tipo !== 'risultato') render();
     else render();
@@ -1164,7 +1207,7 @@ function instrada() {
   if (parti[0] === 'profilo') { chiudiTorneo(); S.view = 'profilo'; render(); window.scrollTo(0, 0); return; }
   if (parti[0] === 't' && parti[1]) {
     S.view = 'torneo';
-    S.tab = ['turno', 'classifica', 'storico', 'altro'].includes(parti[2]) ? parti[2] : 'turno';
+    S.tab = ['turno', 'classifica', 'storico', 'gruppo', 'altro'].includes(parti[2]) ? parti[2] : 'turno';
     apriTorneo(parti[1]);
     render();
     window.scrollTo(0, 0);

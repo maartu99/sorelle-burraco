@@ -82,9 +82,9 @@ p { margin: 0; }
 /* ---------- Navigazione ---------- */
 .nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: var(--max); z-index: 20;
   height: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px)); padding-bottom: env(safe-area-inset-bottom, 0px);
-  display: grid; grid-template-columns: repeat(4, 1fr); background: var(--carta); border-top: var(--b); }
+  display: grid; grid-template-columns: repeat(5, 1fr); background: var(--carta); border-top: var(--b); }
 .nav button { border: 0; border-left: 1px solid var(--linea); background: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
-  font-family: 'Anybody'; font-weight: 800; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); }
+  font-family: 'Anybody'; font-weight: 800; font-size: 10px; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-2); padding: 0 2px; min-width: 0; }
 .nav button:first-child { border-left: 0; }
 .nav button svg { width: 22px; height: 22px; }
 .nav button.attivo { background: var(--giallo); color: var(--ink); }
@@ -239,8 +239,8 @@ select.input { background-image: linear-gradient(45deg, transparent 50%, var(--i
 .voce { display: flex; align-items: center; gap: 12px; padding: 10px; min-height: 64px; background: var(--carta); border: var(--b2); box-shadow: 4px 4px 0 var(--ink); }
 .voce.spento { background: var(--crema); }
 .voce.mia { background: var(--giallo-chiaro); outline: 3px solid var(--giallo); }
-.voce .n { width: 40px; height: 40px; flex: none; display: grid; place-items: center; background: var(--blu); color: #fff; font-family: 'Syne'; font-weight: 800; font-size: 17px; border: var(--b2); }
-.voce .n.giallo { background: var(--giallo); color: var(--ink); }
+.voce .n, .persona .n { width: 40px; height: 40px; flex: none; display: grid; place-items: center; background: var(--blu); color: #fff; font-family: 'Syne'; font-weight: 800; font-size: 17px; border: var(--b2); }
+.voce .n.giallo, .persona .n.giallo { background: var(--giallo); color: var(--ink); }
 .voce.spento .n { background: var(--rosso); }
 .voce .cresce { flex: 1; min-width: 0; }
 .voce .nome { font-family: 'Syne'; font-weight: 800; font-size: 15px; text-transform: uppercase; line-height: 1.15; overflow-wrap: anywhere; }
@@ -301,6 +301,13 @@ select.input { background-image: linear-gradient(45deg, transparent 50%, var(--i
 .podio .g3 { background: var(--rosa); height: 176px; }
 
 .codice-box { background: var(--giallo); border: var(--b); box-shadow: var(--ombra-s); padding: 12px; color: var(--ink); display: flex; flex-direction: column; gap: 6px; }
+.codice-box.codice-riga { gap: 10px; }
+.codice-box.codice-riga .btn { width: 100%; white-space: nowrap; }
+.codice-m { font-family: 'Syne'; font-weight: 800; font-size: 30px; line-height: 1.1; white-space: nowrap; }
+.persona { display: flex; align-items: center; gap: 12px; }
+.persona .nome { font-family: 'Syne'; font-weight: 800; text-transform: uppercase; font-size: 16px; }
+.casella { display: flex; align-items: center; gap: 10px; font-weight: 700; }
+.casella input { width: 22px; height: 22px; accent-color: var(--ink); flex: none; }
 .codice { font-family: 'Syne'; font-weight: 800; font-size: 36px; line-height: 1; white-space: nowrap; }
 
 /* ---------- Profilo ---------- */
