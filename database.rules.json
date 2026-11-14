@@ -10,7 +10,9 @@
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
         ".write": "auth != null && auth.uid === $uid",
-        "$tid": { ".validate": "newData.isBoolean()" }
+        "$tid": {
+          ".validate": "newData.isBoolean()"
+        }
       }
     },
     "tournaments": {
@@ -18,19 +20,59 @@
         ".read": "auth != null && data.child('members').child(auth.uid).exists()",
         "meta": {
           ".write": "auth != null && ((!data.exists() && newData.child('owner').val() === auth.uid) || root.child('tournaments').child($tid).child('members').child(auth.uid).child('role').val() === 'admin')",
-          "name": { ".validate": "newData.isString() && newData.val().length <= 80" }
+          "name": {
+            ".validate": "newData.isString() && newData.val().length <= 80"
+          }
         },
         "members": {
           "$uid": {
             ".write": "auth != null && (root.child('tournaments').child($tid).child('members').child(auth.uid).child('role').val() === 'admin' || (auth.uid === $uid && !data.exists() && newData.child('role').val() === 'viewer') || (auth.uid === $uid && !data.exists() && newData.child('role').val() === 'admin' && root.child('tournaments').child($tid).child('meta').child('owner').val() === auth.uid) || (auth.uid === $uid && data.exists() && newData.exists() && newData.child('role').val() === data.child('role').val()))",
-            "role": { ".validate": "newData.val() === 'admin' || newData.val() === 'viewer'" },
-            "name": { ".validate": "newData.isString() && newData.val().length <= 60" },
-            "player": { ".validate": "newData.isString() && newData.val().length <= 40" },
-            "$other": { ".validate": false }
+            "role": {
+              ".validate": "newData.val() === 'admin' || newData.val() === 'viewer'"
+            },
+            "name": {
+              ".validate": "newData.isString() && newData.val().length <= 60"
+            },
+            "player": {
+              ".validate": "newData.isString() && newData.val().length <= 40"
+            },
+            "$other": {
+              ".validate": false
+            }
           }
         },
         "data": {
           ".write": "auth != null && root.child('tournaments').child($tid).child('members').child(auth.uid).child('role').val() === 'admin'"
+        },
+        "inviti": {
+          ".write": "auth != null && root.child('tournaments').child($tid).child('members').child(auth.uid).child('role').val() === 'admin'",
+          "$k": {
+            ".validate": "!newData.exists() || (newData.child('email').isString() && newData.child('email').val().length <= 120 && newData.child('at').isNumber())",
+            ".write": "auth != null && auth.token.email != null && auth.token.email.toLowerCase().replace('.', ',') === $k && !newData.exists()"
+          }
+        }
+      }
+    },
+    "invites": {
+      "$k": {
+        ".read": "auth != null && auth.token.email != null && auth.token.email.toLowerCase().replace('.', ',') === $k",
+        "$tid": {
+          ".write": "auth != null && (root.child('tournaments').child($tid).child('members').child(auth.uid).child('role').val() === 'admin' || (auth.token.email != null && auth.token.email.toLowerCase().replace('.', ',') === $k && !newData.exists()))",
+          ".validate": "!newData.exists() || (newData.child('name').isString() && newData.child('name').val().length <= 80 && newData.child('by').isString() && newData.child('by').val().length <= 60 && newData.child('email').isString() && newData.child('email').val().length <= 120 && newData.child('at').isNumber())"
+        }
+      }
+    },
+    "users": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+        "pushTokens": {
+          "$t": {
+            ".validate": "newData.isString() && newData.val().length <= 400"
+          }
+        },
+        "$other": {
+          ".validate": false
         }
       }
     }

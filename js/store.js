@@ -1,5 +1,9 @@
 // Livello dati: Firebase (Authentication + Realtime Database) oppure modalità prova locale.
-import { firebaseConfig } from './firebase-config.js';
+// Import come oggetto: se il telefono ha ancora in memoria una versione vecchia del file
+// (senza VAPID_KEY), l'app parte lo stesso, con le notifiche spente.
+import * as CONFIG from './firebase-config.js';
+const { firebaseConfig } = CONFIG;
+const VAPID_KEY = CONFIG.VAPID_KEY || '';
 
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 function nuovoCodice() {
@@ -48,10 +52,16 @@ export function differenze(prima, dopo, base = '', out = {}) {
 
 const pulito = (x) => JSON.parse(JSON.stringify(x ?? null));
 
+// Chiave di un'email nel database (i punti non sono ammessi nelle chiavi).
+// La stessa trasformazione è nelle regole: auth.token.email.toLowerCase().replace('.', ',').
+export const chiaveEmail = (email) => String(email || '').trim().toLowerCase().replace(/\./g, ',');
+export const emailValida = (email) => /^[^\s@#$\[\]\/]+@[^\s@#$\[\]\/]+\.[^\s@#$\[\]\/]+$/.test(String(email || '').trim());
+const chiaveToken = (t) => t.replace(/[.#$\[\]\/]/g, '_');
+
 // ================= Firebase =================
 
 async function creaStoreFirebase() {
-  const fb = await import('./vendor/firebase.js');
+  const fb = await import('./vendor/firebase.js?v=12');
   const app = fb.initializeApp(firebaseConfig);
   const auth = fb.getAuth(app);
   const db = fb.getDatabase(app);
@@ -138,7 +148,7 @@ async function creaStoreFirebase() {
     watch(tid, cb, onErr) {
       return fb.onValue(fb.ref(db, `tournaments/${tid}`), (s) => {
         const v = s.val() || {};
-        cb({ meta: v.meta || {}, members: v.members || {}, data: senzaArray(v.data || {}) });
+        cb({ meta: v.meta || {}, members: v.members || {}, inviti: v.inviti || {}, data: senzaArray(v.data || {}) });
       }, (e) => onErr && onErr(e));
     },
 
@@ -152,6 +162,60 @@ async function creaStoreFirebase() {
 
     async leaveTournament(user, tid) { await fb.remove(fb.ref(db, `userTournaments/${user.uid}/${tid}`)); },
     async removeMember(tid, uid) { await fb.remove(fb.ref(db, `tournaments/${tid}/members/${uid}`)); },
+
+    // ---- Inviti con email: l'invitato li vede nell'app (e riceve la notifica, se attiva)
+    async invite(tid, nomeTorneo, email, daNome) {
+      const k = chiaveEmail(email); const at = Date.now() + offset;
+      await fb.set(fb.ref(db, `tournaments/${tid}/inviti/${k}`), { email: email.trim().toLowerCase(), at });
+      await fb.set(fb.ref(db, `invites/${k}/${tid}`), { name: nomeTorneo, by: daNome, email: email.trim().toLowerCase(), at });
+    },
+    async cancelInvite(tid, k) {
+      await fb.remove(fb.ref(db, `invites/${k}/${tid}`));
+      await fb.remove(fb.ref(db, `tournaments/${tid}/inviti/${k}`));
+    },
+    watchInvites(user, cb) {
+      if (!user.email) { cb([]); return () => {}; }
+      return fb.onValue(fb.ref(db, `invites/${chiaveEmail(user.email)}`),
+        (s) => cb(Object.entries(s.val() || {}).map(([tid, v]) => ({ tid, ...v })).sort((a, b) => b.at - a.at)), () => cb([]));
+    },
+    async acceptInvite(user, tid) {
+      let gia = false;
+      try { await fb.get(fb.ref(db, `tournaments/${tid}/meta`)); gia = true; } catch (e) { gia = false; }
+      if (!gia) await fb.set(fb.ref(db, `tournaments/${tid}/members/${user.uid}`), { name: user.name, role: 'viewer' });
+      await fb.set(fb.ref(db, `userTournaments/${user.uid}/${tid}`), true);
+      await fb.remove(fb.ref(db, `invites/${chiaveEmail(user.email)}/${tid}`));
+      await fb.remove(fb.ref(db, `tournaments/${tid}/inviti/${chiaveEmail(user.email)}`)).catch(() => {});
+      return tid;
+    },
+    async declineInvite(user, tid) {
+      await fb.remove(fb.ref(db, `invites/${chiaveEmail(user.email)}/${tid}`));
+      await fb.remove(fb.ref(db, `tournaments/${tid}/inviti/${chiaveEmail(user.email)}`)).catch(() => {});
+    },
+
+    // ---- Notifiche push (inviate dal controllo automatico su GitHub)
+    pushDisponibile: () => !!VAPID_KEY,
+    async enablePush(user) {
+      const M = await import('./vendor/messaging.js?v=12');
+      if (!(await M.isSupported())) throw new Error('Questo browser non supporta le notifiche.');
+      const reg = await navigator.serviceWorker.register('sw.js?v=12');
+      await navigator.serviceWorker.ready;
+      const token = await M.getToken(M.getMessaging(app), { vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
+      if (!token) throw new Error('Il telefono non ha dato il permesso.');
+      await fb.set(fb.ref(db, `users/${user.uid}/pushTokens/${chiaveToken(token)}`), token);
+      try { localStorage.setItem('sb-push-token', token); } catch (e) { /* niente */ }
+      return token;
+    },
+    async disablePush(user) {
+      let token = null; try { token = localStorage.getItem('sb-push-token'); } catch (e) { /* niente */ }
+      if (token) await fb.remove(fb.ref(db, `users/${user.uid}/pushTokens/${chiaveToken(token)}`));
+      try { const M = await import('./vendor/messaging.js?v=12'); await M.deleteToken(M.getMessaging(app)); } catch (e) { /* già tolto */ }
+      try { localStorage.removeItem('sb-push-token'); } catch (e) { /* niente */ }
+    },
+    async pushAttiva(user) {
+      let token = null; try { token = localStorage.getItem('sb-push-token'); } catch (e) { /* niente */ }
+      if (!token || typeof Notification === 'undefined' || Notification.permission !== 'granted') return false;
+      try { const s = await fb.get(fb.ref(db, `users/${user.uid}/pushTokens/${chiaveToken(token)}`)); return s.exists(); } catch (e) { return false; }
+    },
     async changeCode(tid, vecchio) {
       let code = null;
       for (let i = 0; i < 8; i++) {
@@ -189,7 +253,9 @@ function creaStoreProva() {
     if (canale) canale.postMessage('x');
   };
   if (canale) canale.onmessage = () => ascoltatori.forEach((f) => f());
-  const db0 = () => { const d = leggi(); d.tournaments = d.tournaments || {}; d.codes = d.codes || {}; d.userT = d.userT || {}; return d; };
+  const db0 = () => { const d = leggi(); d.tournaments = d.tournaments || {}; d.codes = d.codes || {}; d.userT = d.userT || {}; d.invites = d.invites || {}; return d; };
+  // In modalità prova non c'è l'email: l'invito si fa con il nome con cui l'altra persona entra.
+  const kProva = (u) => chiaveEmail(u.email || u.name);
   const sub = (f) => { ascoltatori.add(f); f(); return () => ascoltatori.delete(f); };
   const authCbs = new Set();
   const utenteSalvato = () => { try { return JSON.parse(sessionStorage.getItem(KEY + '-utente')); } catch (e) { return null; } };
@@ -244,7 +310,7 @@ function creaStoreProva() {
       return sub(() => {
         const t = db0().tournaments[tid];
         if (!t) { onErr && onErr(new Error('Torneo non trovato.')); return; }
-        cb({ meta: t.meta, members: t.members, data: pulito(t.data) });
+        cb({ meta: t.meta, members: t.members, inviti: t.inviti || {}, data: pulito(t.data) });
       });
     },
     async saveData(tid, prima, dopo) { const d = db0(); d.tournaments[tid].data = pulito(dopo); scrivi(d); },
@@ -252,6 +318,27 @@ function creaStoreProva() {
     async setMember(tid, uid, patch) { const d = db0(); Object.assign(d.tournaments[tid].members[uid], pulito(patch)); scrivi(d); },
     async leaveTournament(user, tid) { const d = db0(); delete (d.userT[user.uid] || {})[tid]; scrivi(d); },
     async removeMember(tid, uid) { const d = db0(); delete d.tournaments[tid].members[uid]; delete (d.userT[uid] || {})[tid]; scrivi(d); },
+    async invite(tid, nomeTorneo, email, daNome) {
+      const d = db0(); const k = chiaveEmail(email); const at = Date.now();
+      d.tournaments[tid].inviti = { ...(d.tournaments[tid].inviti || {}), [k]: { email: email.trim().toLowerCase(), at } };
+      d.invites[k] = { ...(d.invites[k] || {}), [tid]: { name: nomeTorneo, by: daNome, email: email.trim().toLowerCase(), at } };
+      scrivi(d);
+    },
+    async cancelInvite(tid, k) { const d = db0(); delete (d.invites[k] || {})[tid]; delete (d.tournaments[tid].inviti || {})[k]; scrivi(d); },
+    watchInvites(user, cb) {
+      return sub(() => cb(Object.entries(db0().invites[kProva(user)] || {}).map(([tid, v]) => ({ tid, ...v })).sort((a, b) => b.at - a.at)));
+    },
+    async acceptInvite(user, tid) {
+      const d = db0(); const t = d.tournaments[tid];
+      if (t && !t.members[user.uid]) t.members[user.uid] = { name: user.name, role: 'viewer' };
+      d.userT[user.uid] = { ...(d.userT[user.uid] || {}), [tid]: true };
+      delete (d.invites[kProva(user)] || {})[tid]; if (t) delete (t.inviti || {})[kProva(user)]; scrivi(d); return tid;
+    },
+    async declineInvite(user, tid) { const d = db0(); delete (d.invites[kProva(user)] || {})[tid]; if (d.tournaments[tid]) delete (d.tournaments[tid].inviti || {})[kProva(user)]; scrivi(d); },
+    pushDisponibile: () => false,
+    async enablePush() { throw new Error('Le notifiche non ci sono in modalità prova.'); },
+    async disablePush() {},
+    async pushAttiva() { return false; },
     async changeCode(tid, vecchio) {
       const d = db0(); let code; do { code = nuovoCodice(); } while (d.codes[code]);
       d.codes[code] = tid; if (vecchio) delete d.codes[vecchio]; d.tournaments[tid].meta.code = code; scrivi(d); return code;

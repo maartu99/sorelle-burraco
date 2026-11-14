@@ -1,7 +1,7 @@
-import * as E from './engine.js?v=11';
-import { TEMPI, SISTEMI, TABELLE_VP, RIPOSO, CRITERI_PARITA, FONTI, RIDUZIONE_MAX, SMAZZATE_AMMESSE } from './regolamento.js?v=11';
-import { creaStore } from './store.js?v=11';
-import { OMINO, MARCHIO, ICONE, GOOGLE, SEMI } from './grafica.js?v=11';
+import * as E from './engine.js?v=12';
+import { TEMPI, SISTEMI, TABELLE_VP, RIPOSO, CRITERI_PARITA, FONTI, RIDUZIONE_MAX, SMAZZATE_AMMESSE } from './regolamento.js?v=12';
+import { creaStore, chiaveEmail, emailValida } from './store.js?v=12';
+import { OMINO, MARCHIO, ICONE, GOOGLE, SEMI } from './grafica.js?v=12';
 
 // ================= Stato =================
 const S = {
@@ -9,6 +9,9 @@ const S = {
   user: null,
   view: 'caricamento',
   tornei: [],
+  invitiMiei: [],
+  invitiTorneo: {},
+  push: { stato: 'sconosciuto' },
   tid: null,
   meta: {},
   members: {},
@@ -277,6 +280,10 @@ function vistaHome() {
   return `${testata({ titolo: 'I miei tornei', destra: bottoneProfilo() })}
     <div class="contenuto senza-nav">
       ${banda(['Tornei a coppie', 'Regolamento FIBur', 'Pinelle accese'])}
+      ${S.invitiMiei.map((i) => card({ testa: 'Invito', testaCls: 'rossa', destra: '<span class="badge giallo">Nuovo</span>', corpo: `
+        <p style="margin:0"><strong>${esc(i.by || 'Qualcuno')}</strong> ti ha invitato al torneo</p>
+        <h2 class="titolo-m" style="margin:0">${esc(i.name || 'Torneo')}</h2>
+        <div class="griglia-2"><button class="btn" data-azione="rifiuta-invito" data-tid="${esc(i.tid)}">Rifiuta</button><button class="btn primario" data-azione="accetta-invito" data-tid="${esc(i.tid)}">Accetta</button></div>` })).join('')}
       <section class="hero"><div class="arte"><div class="diag"></div><div class="rossa"></div>${OMINO}</div>
         <div class="testo"><span class="badge rosso" style="align-self:flex-start">Ciao ${esc(S.user.name)}</span>
           <h2 class="titolo">I miei<br><span class="rosso-t">tornei</span></h2>
@@ -300,6 +307,24 @@ function applicaTema(k) {
   try { localStorage.setItem('sb-tema', k); } catch (e) { /* telefono senza memoria locale: vale solo per ora */ }
 }
 
+function inStandalone() { return window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true; }
+function cartaNotifiche() {
+  if (S.push.stato === 'sconosciuto') {
+    S.push.stato = 'verifica';
+    S.store.pushAttiva(S.user).then((on) => { S.push = { stato: on ? 'attive' : (typeof Notification !== 'undefined' && Notification.permission === 'denied') ? 'negate' : 'spente' }; if (S.view === 'profilo') render(); });
+  }
+  const st = S.push.stato;
+  const ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
+  if (!S.store.pushDisponibile()) return '<p class="muto testo-s" style="margin:0">Le notifiche non sono ancora state attivate per l\'app.</p>';
+  if (ios && !inStandalone()) return '<p class="testo-s" style="margin:0">Su iPhone le notifiche funzionano solo aprendo l\'app dall\'icona sulla Home. Aprila da lì e torna qui.</p>';
+  if (st === 'attive') return `<p class="testo-s" style="margin:0">Attive su questo telefono: ricevi un avviso quando qualcuno ti invita a un torneo.</p><button class="btn blocco-w" data-azione="spegni-notifiche">Spegni le notifiche</button>`;
+  if (st === 'negate') return '<p class="testo-s" style="margin:0">Le notifiche sono bloccate nelle impostazioni del telefono. Per riattivarle: Impostazioni, Notifiche, Sorelle Burraco.</p>';
+  if (st === 'attesa' || st === 'verifica') return '<p class="muto testo-s" style="margin:0">Un momento...</p>';
+  return `<p class="testo-s" style="margin:0">Ricevi un avviso sul telefono quando qualcuno ti invita a un torneo, anche ad app chiusa.</p>
+    ${st === 'errore' ? avviso('Non attivate', esc(S.push.msg || 'Riprova.'), 'info') : ''}
+    <button class="btn primario blocco-w" data-azione="attiva-notifiche">Attiva le notifiche</button>`;
+}
+
 function vistaProfilo() {
   const u = S.user;
   const admin = S.tornei.filter((m) => m.role === 'admin').length;
@@ -315,6 +340,7 @@ function vistaProfilo() {
         <p class="muto testo-s">È il nome che vedono gli altri partecipanti nei tornei a cui entri da adesso.</p>
         <div class="campo"><label for="profilo-nome">Nome</label><input id="profilo-nome" class="input" maxlength="40" value="${esc(u.name)}" autocomplete="name"></div>
         <button class="btn giallo blocco-w" data-azione="salva-profilo">Salva il nome</button>` })}
+      ${S.store.mode === 'prova' ? '' : card({ testa: 'Notifiche', corpo: cartaNotifiche() })}
       ${card({ testa: 'Colore dell\'app', corpo: `
         <div class="temi">${TEMI.map(([k, n, g]) => `<button class="${temaAttuale() === k ? 'attivo' : ''}" data-azione="tema" data-v="${k}" aria-label="Colore ${n}"><span class="pallino" style="background:${g}"></span>${n}</button>`).join('')}</div>
         <p class="muto testo-s" style="margin:0">Vale solo per te, su questo telefono.</p>` })}
@@ -639,7 +665,14 @@ function vistaGruppo() {
       <button class="btn primario blocco-w" data-azione="condividi-codice">${ICONE.condividi} Invita</button>
       <p class="muto testo-s" style="margin:-6px 0 0">Si apre la condivisione del telefono: WhatsApp, SMS, mail.</p>
       <div class="codice-box codice-riga"><span class="cresce"><span class="etichetta">Codice</span><br><span class="codice-m num">${esc(S.meta.code || '')}</span></span>
-        <button class="btn piccolo" data-azione="copia-codice">${ICONE.copia} Copia link</button></div>` })}
+        <div class="griglia-2"><button class="btn piccolo" data-azione="copia-solo-codice">${ICONE.copia} Copia codice</button><button class="btn piccolo" data-azione="copia-codice">${ICONE.copia} Copia link</button></div></div>
+      <p class="muto testo-s" style="margin:0">Chi ha già l'app può incollare il codice in "Entra con codice", nella home.</p>` })}
+    ${adm && S.store.mode ? card({ testa: 'Invita dentro l\'app', corpo: `
+      <p class="testo-s" style="margin:0">${S.store.mode === 'prova' ? 'In modalità prova scrivi il nome con cui l\'altra persona entra.' : 'Per chi usa già l\'app: scrivi l\'email con cui accede. Trova l\'invito appena apre l\'app e, se ha attivato le notifiche, riceve un avviso sul telefono.'}</p>
+      <div class="campo"><label for="invito-email">${S.store.mode === 'prova' ? 'Nome' : 'Email'}</label><input id="invito-email" class="input" type="${S.store.mode === 'prova' ? 'text' : 'email'}" inputmode="${S.store.mode === 'prova' ? 'text' : 'email'}" autocomplete="off" autocapitalize="off" maxlength="80" placeholder="${S.store.mode === 'prova' ? 'Es. Natasha' : 'nome@esempio.it'}"></div>
+      <button class="btn primario blocco-w" data-azione="invita-email">Invita</button>
+      ${Object.keys(S.invitiTorneo || {}).length ? `<div class="sezione" style="margin-top:4px"><h2>In attesa (${Object.keys(S.invitiTorneo).length})</h2></div>
+        <div class="elenco">${Object.entries(S.invitiTorneo).sort((a, b) => b[1].at - a[1].at).map(([k, v]) => `<div class="voce"><span class="cresce nome-p" style="overflow-wrap:anywhere">${esc(v.email)}</span><button class="btn piccolo" data-azione="annulla-invito" data-k="${esc(k)}">Annulla</button></div>`).join('')}</div>` : ''}` }) : ''}
     <div class="sezione"><h2>Persone (${membri.length})</h2><span class="badge chiaro">${nAdmin} admin</span></div>
     <div class="elenco">${membri.map(([uid, m], i) => {
       const admin = m.role === 'admin';
@@ -888,6 +921,45 @@ const azioni = {
     try { const tid = await S.store.joinByCode(S.user, c); chiudiFoglio(); vai(`#/t/${tid}/turno`); } catch (e) { toast(erroreLeggibile(e)); }
   },
   'apri-torneo'(el) { vai(`#/t/${el.dataset.tid}/turno`); },
+  async 'accetta-invito'(el) {
+    const tid = el.dataset.tid;
+    try { await S.store.acceptInvite(S.user, tid); vai(`#/t/${tid}/turno`); } catch (e) { toast(erroreLeggibile(e)); }
+  },
+  async 'rifiuta-invito'(el) {
+    try { await S.store.declineInvite(S.user, el.dataset.tid); toast('Invito rifiutato.'); } catch (e) { toast(erroreLeggibile(e)); }
+  },
+  async 'invita-email'() {
+    const v = val('invito-email').trim();
+    const prova = S.store.mode === 'prova';
+    if (!v) return toast(prova ? 'Scrivi il nome.' : 'Scrivi l\'email.');
+    if (!prova && !emailValida(v)) return toast('Email non valida.');
+    const k = chiaveEmail(v);
+    const giaDentro = Object.values(S.members).some((m) => m.email && chiaveEmail(m.email) === k);
+    if (giaDentro) return toast('Questa persona è già nel torneo.');
+    if ((S.invitiTorneo || {})[k]) return toast('L\'invito è già stato mandato.');
+    try {
+      await S.store.invite(S.tid, S.meta.name || 'Torneo', v, S.user.name);
+      const el = document.getElementById('invito-email'); if (el) el.value = '';
+      toast(`Invito mandato a ${v}.`);
+    } catch (e) { toast(erroreLeggibile(e)); }
+  },
+  async 'annulla-invito'(el) {
+    try { await S.store.cancelInvite(S.tid, el.dataset.k); toast('Invito annullato.'); } catch (e) { toast(erroreLeggibile(e)); }
+  },
+  async 'attiva-notifiche'() {
+    if (typeof Notification === 'undefined' || !('serviceWorker' in navigator)) return toast(inStandalone() ? 'Questo telefono non supporta le notifiche.' : 'Apri l\'app dall\'icona sulla Home, poi attiva le notifiche.');
+    S.push = { stato: 'attesa' }; render();
+    try {
+      const p = await Notification.requestPermission();
+      if (p !== 'granted') { S.push = { stato: p === 'denied' ? 'negate' : 'spente' }; return render(); }
+      await S.store.enablePush(S.user);
+      S.push = { stato: 'attive' }; render(); toast('Notifiche attivate su questo telefono.');
+    } catch (e) { S.push = { stato: 'errore', msg: erroreLeggibile(e) }; render(); }
+  },
+  async 'spegni-notifiche'() {
+    try { await S.store.disablePush(S.user); } catch (e) { /* già spente */ }
+    S.push = { stato: 'spente' }; render(); toast('Notifiche spente su questo telefono.');
+  },
   home() { vai('#/'); },
   tab(el) { S.tab = el.dataset.tab; vai(`#/t/${S.tid}/${S.tab}`); },
   'setup-tab'(el) { S.setupTab = el.dataset.tab; render(); window.scrollTo(0, 0); },
@@ -1082,6 +1154,10 @@ const azioni = {
   },
   async lascia() { const tid = S.tid; chiudiTorneo(); await S.store.leaveTournament(S.user, tid); vai('#/'); },
 
+  async 'copia-solo-codice'() {
+    const c = S.meta.code || '';
+    try { await navigator.clipboard.writeText(c); toast('Codice copiato.'); } catch (e) { toast(c); }
+  },
   async 'copia-codice'() {
     const link = `${location.origin}${location.pathname}#/entra/${S.meta.code}`;
     try { await navigator.clipboard.writeText(link); toast('Link copiato.'); } catch (e) { toast(link); }
@@ -1209,10 +1285,10 @@ function apriTorneo(tid) {
   chiudiTorneo();
   S.tid = tid;
   S.setupTab = 'torneo';
-  S.offTorneo = S.store.watch(tid, ({ meta, members, data }) => {
+  S.offTorneo = S.store.watch(tid, ({ meta, members, inviti, data }) => {
     if (S.tid !== tid) return;
     if (!members[S.user.uid]) { toast('Non fai più parte di questo torneo.'); chiudiTorneo(); S.store.leaveTournament(S.user, tid).catch(() => {}); vai('#/'); return; }
-    S.meta = meta; S.members = members; S.data = E.normalizza(data);
+    S.meta = meta; S.members = members; S.invitiTorneo = inviti || {}; S.data = E.normalizza(data);
     if (!S.sheet || S.sheet.tipo !== 'risultato') render();
     else render();
   }, () => { toast('Torneo non disponibile.'); chiudiTorneo(); vai('#/'); });
@@ -1247,6 +1323,8 @@ window.addEventListener('hashchange', instrada);
 function avviaUtente() {
   if (S.offLista) S.offLista();
   S.offLista = S.store.myTournaments(S.user.uid, (lista) => { S.tornei = lista; if (S.view === 'home' || S.view === 'profilo') render(); });
+  if (S.offInviti) S.offInviti();
+  S.offInviti = S.store.watchInvites(S.user, (l) => { S.invitiMiei = l; if (S.view === 'home' || S.view === 'profilo') render(); });
   if (S.codiceInSospeso) { const c = S.codiceInSospeso; S.codiceInSospeso = null; location.hash = `#/entra/${c}`; }
   instrada();
 }
@@ -1258,7 +1336,7 @@ async function avvio() {
   S.store.onAuth((u) => {
     if (u && S.user && u.uid === S.user.uid) return;
     S.user = u;
-    if (!u) { if (S.offLista) S.offLista(); chiudiTorneo(); S.view = 'login'; S.login.errore = ''; return render(); }
+    if (!u) { if (S.offLista) S.offLista(); if (S.offInviti) S.offInviti(); S.invitiMiei = []; chiudiTorneo(); S.view = 'login'; S.login.errore = ''; return render(); }
     avviaUtente();
   });
 }

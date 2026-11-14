@@ -8,4 +8,9 @@ export const firebaseConfig = {
   databaseURL: 'https://sorelle-burraco-default-rtdb.europe-west1.firebasedatabase.app',
   projectId: 'sorelle-burraco',
   appId: '1:865265695352:web:1852ee58f0c86f5bf94b8d',
+  messagingSenderId: '865265695352',
 };
+
+// Chiave pubblica per le notifiche push (Firebase > Impostazioni progetto > Cloud Messaging >
+// Certificati push web). Non è segreta. Finché è vuota, le notifiche restano spente.
+export const VAPID_KEY = '';
