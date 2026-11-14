@@ -16,6 +16,7 @@ const S = {
   tab: 'turno',
   setupTab: 'torneo',
   storicoTab: 'storico',
+  filtro: 'tutti',
   login: { modo: 'accedi', errore: '' },
   selezione: null,
   sheet: null,
@@ -121,10 +122,11 @@ function render() {
   });
 
   let html = '';
-  if (S.view === 'caricamento') html = `<div class="contenuto senza-nav"><p class="testo-muto">Caricamento...</p></div>`;
+  if (S.view === 'caricamento') html = `<div class="contenuto senza-nav"><p class="muto testo-s">Caricamento...</p></div>`;
   else if (S.view === 'login') html = vistaLogin();
   else if (S.view === 'home') html = vistaHome();
   else if (S.view === 'torneo') html = vistaTorneo();
+  else if (S.view === 'profilo') html = vistaProfilo();
   $app.innerHTML = html;
 
   for (const [id, v] of Object.entries(modificati)) {
@@ -139,81 +141,169 @@ function render() {
   aggiornaTimer();
 }
 
+// ================= Pezzi grafici comuni =================
+const SEME = {
+  cuori: '<svg viewBox="0 0 24 24" fill="#c0280b"><polygon points="12,22 2,10 7,4 12,9 17,4 22,10"/></svg>',
+  quadri: '<svg viewBox="0 0 24 24" fill="#f5c800"><polygon points="12,2 22,12 12,22 2,12" stroke="#141313" stroke-width="1.5"/></svg>',
+  fiori: '<svg viewBox="0 0 24 24" fill="#4f599e"><circle cx="12" cy="7" r="4.5"/><circle cx="7" cy="13" r="4.5"/><circle cx="17" cy="13" r="4.5"/><rect x="11" y="13" width="2" height="9"/></svg>',
+  picche: '<svg viewBox="0 0 24 24" fill="#141313"><polygon points="12,2 21,14 15,16 14,14 14,22 10,22 10,14 9,16 3,14"/></svg>',
+};
+
+function iniziale(nome) { return esc((nome || '?').trim().charAt(0).toUpperCase() || '?'); }
+
+function testata({ sopra = 'Sorelle Burraco', titolo, sinistra = '', destra = '' }) {
+  return `<header class="testata">${sinistra || `<span class="logo">${MARCHIO}</span>`}
+    <div class="testi"><span class="sopra">${esc(sopra)}</span><h1>${esc(titolo)}</h1></div>${destra}</header>`;
+}
+
+function bottoneProfilo() {
+  return `<button class="icona-btn avatar" data-azione="profilo" aria-label="Il tuo profilo">${iniziale(S.user?.name)}</button>`;
+}
+
+function banda(parti) {
+  const testo = parti.map(esc).join('<i></i>');
+  return `<div class="banda" aria-hidden="true"><span>${testo}<i></i>${testo}</span></div>`;
+}
+
+function tile(etichetta, valore, cls = '', id = '') {
+  return `<div class="tile ${cls}"><span class="etichetta">${etichetta}</span><span class="val num" ${id ? `id="${id}"` : ''}>${valore}</span></div>`;
+}
+
+function card({ testa = '', testaCls = '', destra = '', corpo = '', cls = '' }) {
+  return `<section class="card ${cls}">${testa ? `<div class="testa ${testaCls}"><span class="etichetta"><span class="rombo-s"></span>${testa}</span>${destra}</div>` : ''}
+    <div class="corpo">${corpo}</div></section>`;
+}
+
+function avviso(titolo, testo, cls = '') {
+  return `<div class="avviso ${cls}"><span class="ico">!</span><div class="colonna"><span><span class="titolo-avviso">${titolo}</span></span><span>${testo}</span></div></div>`;
+}
+
+function semi() {
+  return `<div class="semi" aria-hidden="true"><div>${SEME.cuori}Cuori</div><div>${SEME.quadri}Quadri</div><div>${SEME.fiori}Fiori</div><div>${SEME.picche}Picche</div></div>`;
+}
+
 // ================= Login =================
 function vistaLogin() {
   const prova = S.store.mode === 'prova';
   const l = S.login;
-  const hero = `<div class="hero"><div class="forma-rossa"></div>${OMINO}
-    <div class="fascia"><h1 class="titolo">Sorelle Burraco</h1><p class="etichetta" style="color:var(--ink)">Tornei di burraco a coppie</p></div></div>`;
+  const hero = `<div class="hero-accesso"><div class="rossa"></div><div class="gialla"></div>${OMINO}
+    <div class="targa"><h1 class="titolo">Sorelle Burraco</h1></div>
+    <p class="sotto etichetta">Tornei di burraco a coppie</p></div>`;
   if (prova) {
     return `<div class="contenuto senza-nav">${hero}
-      <div class="avviso info"><strong>Modalità prova</strong><span>Firebase non è ancora collegato: i dati restano solo su questo browser.</span></div>
-      <div class="scheda in-evidenza">
+      ${avviso('Modalità prova', 'Firebase non è collegato: i dati restano solo su questo browser.', 'info')}
+      ${card({ testa: 'Entra', testaCls: 'gialla', corpo: `
         <div class="campo"><label for="prova-nome">Il tuo nome</label><input id="prova-nome" class="input" autocomplete="name" maxlength="40" placeholder="Es. Natasha"></div>
-        <button class="btn primario blocco" data-azione="entra-prova">Entra ${ICONE.freccia}</button>
-      </div>${SEMI}</div>`;
+        <button class="btn primario blocco-w" data-azione="entra-prova">Entra ${ICONE.freccia}</button>` })}
+      ${semi()}</div>`;
   }
   const crea = l.modo === 'crea';
   return `<div class="contenuto senza-nav">${hero}
-    <div class="scheda in-evidenza">
-      <h2 class="titolo-s">${crea ? 'Crea un account' : 'Accedi'}</h2>
-      <button class="btn blocco" data-azione="google">${GOOGLE.replace('<svg', '<svg width="20" height="20"')} Accedi con Google</button>
-      <div class="separatore"><span class="etichetta">oppure</span></div>
+    ${card({ testa: crea ? 'Crea un account' : 'Accedi al circolo', testaCls: 'gialla', corpo: `
+      <button class="btn blocco-w" data-azione="google">${GOOGLE.replace('<svg', '<svg width="20" height="20"')} Accedi con Google</button>
+      <div class="separatore"><i></i><span class="etichetta">oppure</span><i class="g"></i></div>
       ${crea ? `<div class="campo"><label for="l-nome">Nome</label><input id="l-nome" class="input" autocomplete="name" maxlength="40"></div>` : ''}
       <div class="campo"><label for="l-email">Email</label><input id="l-email" class="input" type="email" autocomplete="email" inputmode="email"></div>
       <div class="campo"><label for="l-pw">Password</label><input id="l-pw" class="input" type="password" autocomplete="${crea ? 'new-password' : 'current-password'}"></div>
-      ${l.errore ? `<div class="avviso">${esc(l.errore)}</div>` : ''}
-      <button class="btn primario blocco" data-azione="${crea ? 'crea-account' : 'accedi'}">${crea ? 'Crea account' : 'Accedi'} ${ICONE.freccia}</button>
+      ${l.errore ? avviso('Attenzione', esc(l.errore)) : ''}
+      <button class="btn primario blocco-w" data-azione="${crea ? 'crea-account' : 'accedi'}">${crea ? 'Crea account' : 'Entra'} ${ICONE.freccia}</button>
       <div class="riga spazio">
         <button class="link" data-azione="modo-login">${crea ? 'Ho già un account' : 'Crea un account'}</button>
         ${crea ? '' : '<button class="link" data-azione="reset-pw">Password dimenticata?</button>'}
-      </div>
-    </div>${SEMI}</div>`;
+      </div>` })}
+    ${semi()}
+    <p class="piede-pagina">Sorelle Burraco - tornei tra amici</p></div>`;
 }
 
 // ================= Home =================
-function statoTorneo(m) {
-  if (m.status === 'finished') return '<span class="tag muto">Concluso</span>';
-  if (m.status === 'running') return `<span class="tag rosso">In corso - turno ${m.turno} di ${m.turni}</span>`;
-  return '<span class="tag giallo">Da iniziare</span>';
+function cardTorneo(m) {
+  const data = m.data ? new Date(m.data + 'T12:00').toLocaleDateString('it-IT', { day: 'numeric', month: 'long' }) : '';
+  const ruolo = m.role === 'admin' ? 'Admin' : 'Partecipante';
+  const apri = `<button class="btn nero blocco-w" data-azione="apri-torneo" data-tid="${esc(m.tid)}"><span class="riga">${ICONE.bandiera} ${m.status === 'running' ? 'Vai al turno' : m.status === 'finished' ? 'Vedi la classifica' : 'Prepara il torneo'}</span>${ICONE.freccia}</button>`;
+  if (m.status === 'running') {
+    const segni = Array.from({ length: m.turni || 0 }, (_, i) => `<span class="${i + 1 < m.turno ? 'pieno' : i + 1 === m.turno ? 'ora' : ''}"></span>`).join('');
+    return card({ testa: `In corso - turno ${m.turno} di ${m.turni}`, testaCls: 'rossa', destra: '<span class="badge rosso">Live</span>', corpo: `
+      <div class="riga spazio"><h3 class="titolo-m">${esc(m.name)}</h3><span class="tile giallo" style="padding:6px 8px"><span class="etichetta">Coppie</span><span class="val num">${m.coppie || '-'}</span></span></div>
+      <div class="tiles">${tile('Turno', `${m.turno}<small>/${m.turni}</small>`)}${tile('Data', data || '-', '', '').replace('class="val num"', 'class="val medio"')}${tile('Ruolo', ruolo).replace('class="val num"', 'class="val medio"')}</div>
+      <div class="colonna"><div class="riga spazio"><span class="testo-s">Avanzamento turni</span><span class="etichetta">${Math.round(((m.turno - 1) / (m.turni || 1)) * 100)}% completato</span></div><div class="barra-seg">${segni}</div></div>
+      ${apri}` });
+  }
+  if (m.status === 'finished') {
+    return card({ testa: `Concluso${data ? ` - ${data}` : ''}`, destra: '<span class="badge nero">Archivio</span>', corpo: `
+      <h3 class="titolo-m">${esc(m.name)}</h3><p class="muto testo-s">${m.coppie || 0} coppie - ${m.turni} turni - ${ruolo}</p>${apri}` });
+  }
+  return card({ testa: `Da iniziare${data ? ` - ${data}` : ''}`, testaCls: 'blu', destra: `<span class="badge giallo">${ruolo}</span>`, cls: 'blu', corpo: `
+    <h3 class="titolo-m">${esc(m.name)}</h3><p class="muto testo-s">${m.coppie ? `${m.coppie} coppie` : 'Presenze e coppie da preparare'}</p>
+    <button class="btn giallo blocco-w" data-azione="apri-torneo" data-tid="${esc(m.tid)}">${m.role === 'admin' ? 'Prepara il torneo' : 'Apri il torneo'} ${ICONE.freccia}</button>` });
 }
 
 function vistaHome() {
-  const lista = S.tornei.slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-  return `<header class="testata">${MARCHIO}<h1>Sorelle Burraco</h1>
-      <button class="icona-btn" data-azione="esci" aria-label="Esci">${ICONE.esci}</button></header>
+  const tutti = S.tornei.slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  const f = S.filtro || 'tutti';
+  const conta = (st) => tutti.filter((m) => m.status === st).length;
+  const lista = f === 'tutti' ? tutti : tutti.filter((m) => m.status === f);
+  const filtri = [['tutti', `Tutti (${tutti.length})`], ['running', `In corso (${conta('running')})`], ['setup', `Da iniziare (${conta('setup')})`], ['finished', `Conclusi (${conta('finished')})`]];
+  return `${testata({ titolo: 'I miei tornei', destra: bottoneProfilo() })}
     <div class="contenuto senza-nav">
-      <div class="hero compatto"><div class="forma-rossa"></div>${OMINO}
-        <div class="fascia"><h2 class="titolo">I miei tornei</h2><p class="etichetta" style="color:var(--ink)">Ciao ${esc(S.user.name)}</p></div></div>
-      <div class="griglia-2">
-        <button class="btn primario" data-azione="apri-crea">${ICONE.piu} Crea torneo</button>
-        <button class="btn blu" data-azione="apri-entra">Entra con codice</button>
+      ${banda(['Tornei a coppie', 'Regolamento FIBur', 'Pinelle accese'])}
+      <section class="hero"><div class="arte"><div class="diag"></div><div class="rossa"></div>${OMINO}</div>
+        <div class="testo"><span class="badge rosso" style="align-self:flex-start">Ciao ${esc(S.user.name)}</span>
+          <h2 class="titolo">I miei<br><span class="rosso-t">tornei</span></h2>
+          <p class="testo-s">Coppie, tavoli e classifica della serata, in tempo reale per tutti.</p></div>
+        <div class="piede"><span>${SEME.quadri}Quadri</span><span>${SEME.picche}Picche</span><span>${SEME.cuori}Cuori</span></div><div class="angolo"></div></section>
+      <div class="azioni">
+        <button class="blocco rosso" data-azione="apri-crea"><span class="ico">${ICONE.piu}</span><span class="badge giallo">Nuovo</span><span class="nome">Crea torneo</span><span class="sub">Tavoli, coppie e turni</span></button>
+        <button class="blocco blu" data-azione="apri-entra"><span class="ico">${ICONE.chiave}</span><span class="rombo-v"></span><span class="nome">Entra con codice</span><span class="sub">Partecipa a un torneo</span></button>
       </div>
-      ${lista.length ? lista.map((m) => `
-        <button class="scheda ${m.status === 'running' ? 'in-evidenza' : ''}" style="text-align:left" data-azione="apri-torneo" data-tid="${esc(m.tid)}">
-          <div class="riga spazio">${statoTorneo(m)}<span class="tag ${m.role === 'admin' ? 'blu' : 'muto'}">${m.role === 'admin' ? 'Admin' : 'Partecipante'}</span></div>
-          <h3 class="titolo-s">${esc(m.name)}</h3>
-          <p class="testo-muto">${m.data ? esc(new Date(m.data + 'T12:00').toLocaleDateString('it-IT', { day: 'numeric', month: 'long' })) + ' - ' : ''}${m.coppie ? `${m.coppie} coppie` : 'Coppie da formare'}</p>
-        </button>`).join('') : `<div class="scheda crema"><p>Non hai ancora tornei. Creane uno, oppure entra con il codice che ti ha mandato chi organizza.</p></div>`}
-      ${S.store.mode === 'prova' ? '<p class="piede">Modalità prova: i dati restano su questo browser.</p>' : ''}
+      ${tutti.length ? `<div class="filtri">${filtri.map(([k, t]) => `<button class="${f === k ? 'attivo' : ''}" data-azione="filtro" data-v="${k}">${t}</button>`).join('')}</div>` : ''}
+      ${lista.length ? lista.map(cardTorneo).join('') : card({ cls: 'crema', corpo: `<div class="riga"><span class="mini-omino">${OMINO}</span><p>${tutti.length ? 'Nessun torneo in questo elenco.' : 'Non hai ancora tornei. Creane uno, oppure entra con il codice che ti ha mandato chi organizza.'}</p></div>` })}
+      ${S.store.mode === 'prova' ? '<p class="piede-pagina">Modalità prova: i dati restano su questo browser</p>' : ''}
+    </div>`;
+}
+
+// ================= Profilo =================
+function vistaProfilo() {
+  const u = S.user;
+  const admin = S.tornei.filter((m) => m.role === 'admin').length;
+  const inCorso = S.tornei.filter((m) => m.status === 'running').length;
+  return `${testata({ titolo: 'Il tuo profilo', sinistra: `<button class="icona-btn" data-azione="home" aria-label="Torna ai tornei">${ICONE.indietro}</button>` })}
+    <div class="contenuto senza-nav">
+      ${card({ testa: 'Giocatore', testaCls: 'gialla', corpo: `
+        <div class="profilo-testa"><span class="avatar-grande">${iniziale(u.name)}</span>
+          <div class="colonna"><h2 class="titolo-m">${esc(u.name)}</h2>${u.email ? `<p class="muto testo-s">${esc(u.email)}</p>` : ''}
+          <span class="badge chiaro" style="align-self:flex-start">${S.store.mode === 'prova' ? 'Modalità prova' : u.google ? 'Accesso con Google' : 'Accesso con email'}</span></div></div>
+        <div class="tiles">${tile('Tornei', S.tornei.length, 'giallo')}${tile('Come admin', admin)}${tile('In corso', inCorso, inCorso ? 'rosso' : '')}</div>` })}
+      ${card({ testa: 'Nome visualizzato', corpo: `
+        <p class="muto testo-s">È il nome che vedono gli altri partecipanti nei tornei a cui entri da adesso.</p>
+        <div class="campo"><label for="profilo-nome">Nome</label><input id="profilo-nome" class="input" maxlength="40" value="${esc(u.name)}" autocomplete="name"></div>
+        <button class="btn giallo blocco-w" data-azione="salva-profilo">Salva il nome</button>` })}
+      ${S.store.mode !== 'prova' && u.email && !u.google ? card({ testa: 'Password', corpo: `<p class="muto testo-s">Ti mandiamo un'email con il link per cambiarla.</p>
+        <button class="btn blocco-w" data-azione="cambia-pw">Cambia password</button>` }) : ''}
+      <button class="btn primario blocco-w" data-azione="esci">${ICONE.esci} Esci</button>
+      ${semi()}
     </div>`;
 }
 
 // ================= Torneo =================
+function bandaTorneo() {
+  const t = S.data;
+  if (t.status === 'setup') return banda(['Preparazione', 'Presenze e coppie', SISTEMI[t.config.sistema].nome]);
+  if (t.status === 'finished') return banda(['Torneo concluso', 'Classifica finale', `${t.order.length} coppie`]);
+  const n = E.turnoCorrente(t);
+  return banda([`Turno ${n} di ${t.config.turni}`, SISTEMI[t.config.sistema].nome, `${t.config.smazzate} smazzate`]);
+}
+
 function vistaTorneo() {
-  if (!S.data) return `<div class="contenuto senza-nav"><p class="testo-muto">Caricamento torneo...</p></div>`;
+  if (!S.data) return `<div class="contenuto senza-nav"><p class="muto">Caricamento torneo...</p></div>`;
   const tabs = [['turno', 'Turno', ICONE.turno], ['classifica', 'Classifica', ICONE.classifica], ['storico', 'Storico', ICONE.storico], ['altro', 'Altro', ICONE.altro]];
   let corpo = '';
   if (S.tab === 'turno') corpo = S.data.status === 'setup' ? vistaSetup() : S.data.status === 'finished' ? vistaFinale() : vistaTurno();
   else if (S.tab === 'classifica') corpo = vistaClassifica();
   else if (S.tab === 'storico') corpo = vistaStorico();
   else corpo = vistaAltro();
-  return `<header class="testata">
-      <button class="icona-btn" data-azione="home" aria-label="Torna ai tornei">${ICONE.indietro}</button>
-      <h1>${esc(S.meta.name || 'Torneo')}</h1>
-      <span class="tag ${isAdmin() ? 'blu' : 'muto'}">${isAdmin() ? 'Admin' : 'Partecipante'}</span>
-    </header>
-    <main class="contenuto">${corpo}</main>
+  return `${testata({ sopra: isAdmin() ? 'Sorelle Burraco - admin' : 'Sorelle Burraco', titolo: S.meta.name || 'Torneo',
+      sinistra: `<button class="icona-btn" data-azione="home" aria-label="Torna ai tornei">${ICONE.indietro}</button>`, destra: bottoneProfilo() })}
+    <main class="contenuto">${bandaTorneo()}${corpo}</main>
     <nav class="nav">${tabs.map(([k, l, i]) => `<button class="${S.tab === k ? 'attivo' : ''}" data-azione="tab" data-tab="${k}">${i}${l}</button>`).join('')}</nav>`;
 }
 
@@ -222,11 +312,11 @@ function vistaSetup() {
   if (!isAdmin()) {
     const pres = giocatoriPresenti().length;
     const conf = Object.keys(S.data.pairs).length;
-    return `<div class="scheda gialla in-evidenza"><p class="etichetta" style="color:var(--ink)">In preparazione</p>
-        <h2 class="titolo">Il torneo non è ancora iniziato</h2>
-        <p>Quando l'organizzazione avvia il torneo, qui compaiono tavoli, timer e risultati.</p></div>
-      <div class="scheda"><p class="etichetta">Giocatori presenti</p><p class="punteggio num">${pres}</p></div>
-      ${conf ? `<div class="scheda"><p class="etichetta">Coppie</p>${elencoCoppie()}</div>` : ''}`;
+    return `<section class="hero"><div class="arte"><div class="diag"></div><div class="rossa"></div>${OMINO}</div>
+        <div class="testo"><span class="badge blu" style="align-self:flex-start">In preparazione</span><h2 class="titolo-m">Il torneo sta per iniziare</h2>
+        <p class="testo-s">Qui compariranno tavoli, timer e risultati.</p></div><div class="piede"><span>${SEME.fiori}Fiori</span><span>${SEME.cuori}Cuori</span></div><div class="angolo"></div></section>
+      <div class="tiles due">${tile('Giocatori presenti', pres, 'giallo')}${tile('Coppie', conf || '-')}</div>
+      ${conf ? `<div class="sezione"><h2>Coppie</h2></div>${elencoCoppie()}` : ''}`;
   }
   const passi = [['torneo', 'Torneo'], ['giocatori', 'Giocatori'], ['coppie', 'Coppie']];
   let c = '';
@@ -245,42 +335,33 @@ function setupTorneo() {
   const crono = E.cronoprogramma(c, c.turni);
   const errTurni = n >= 3 && c.turni > max;
   return `
-    <div class="scheda">
+    ${card({ testa: 'Il torneo', testaCls: 'blu', corpo: `
       <div class="campo"><label for="cfg-nome">Nome del torneo</label><input id="cfg-nome" class="input" maxlength="80" value="${esc(S.meta.name)}"></div>
       <div class="griglia-2">
         <div class="campo"><label for="cfg-data">Data</label><input id="cfg-data" class="input" type="date" value="${esc(c.data)}"></div>
         <div class="campo"><label for="cfg-ora">Inizio</label><input id="cfg-ora" class="input" type="time" value="${esc(c.inizio)}"></div>
-      </div>
-    </div>
-    <div class="scheda">
-      <p class="etichetta">Smazzate per turno</p>
-      <div class="segmenti">${SMAZZATE_AMMESSE.map((s) => `<button class="${c.smazzate === s ? 'attivo' : ''}" data-azione="cfg" data-k="smazzate" data-v="${s}">${s}<small>${TEMPI[s]} minuti</small></button>`).join('')}</div>
-      <p class="etichetta">Riduzione del tempo</p>
+      </div>` })}
+    ${card({ testa: 'Smazzate e tempo', corpo: `
+      <div class="segmenti">${SMAZZATE_AMMESSE.map((s) => `<button class="${c.smazzate === s ? 'attivo' : ''}" data-azione="cfg" data-k="smazzate" data-v="${s}">${s} smazzate<small>${TEMPI[s]} minuti</small></button>`).join('')}</div>
+      <span class="etichetta">Riduzione del tempo</span>
       <div class="segmenti">${Array.from({ length: RIDUZIONE_MAX + 1 }, (_, r) => `<button class="${(c.riduzione || 0) === r ? 'attivo' : ''}" data-azione="cfg" data-k="riduzione" data-v="${r}">${r ? `-${r} min` : 'Nessuna'}</button>`).join('')}</div>
-      <p class="testo-muto">Il regolamento permette di ridurre il tempo fino a 2 minuti, avvisando all'inizio del torneo.</p>
-    </div>
-    <div class="scheda">
-      <p class="etichetta">Numero di turni</p>
+      <p class="muto testo-s">Il regolamento permette di ridurre il tempo fino a 2 minuti, avvisando all'inizio del torneo.</p>` })}
+    ${card({ testa: 'Numero di turni', corpo: `
       <div class="stepper"><button data-azione="turni" data-d="-1" aria-label="Meno turni">-</button><output class="num">${c.turni}</output><button data-azione="turni" data-d="1" aria-label="Più turni">+</button></div>
-      ${n >= 3 ? `<p class="testo-muto">Con ${n} coppie e il sistema scelto: massimo ${max >= 20 ? 'senza limite pratico' : max + ' turni'}.</p>` : '<p class="testo-muto">Il massimo dipende dal numero di coppie, che si conosce dopo le presenze.</p>'}
-      ${errTurni ? `<div class="avviso">Troppi turni per ${SISTEMI[c.sistema].nome} con ${n} coppie: al massimo ${max}.</div>` : ''}
-    </div>
-    <div class="scheda">
-      <p class="etichetta">Sistema di abbinamento</p>
-      ${Object.entries(SISTEMI).map(([k, s]) => {
-        const mk = E.maxTurni(k, n);
-        const ok = n < 3 || c.turni <= mk;
-        return `<button class="opzione" role="radio" aria-checked="${c.sistema === k}" data-azione="cfg" data-k="sistema" data-v="${k}">
-          <span class="rombo"></span><span class="colonna cresce"><span class="riga spazio"><strong>${s.nome}</strong>${n >= 3 && k === sugg ? '<span class="tag verde">Consigliato</span>' : ''}</span>
-          <span class="testo-muto">${s.descrizione}${n >= 3 && !ok ? ` Con ${n} coppie: massimo ${mk} turni.` : ''}</span></span></button>`;
-      }).join('')}
-    </div>
-    <div class="scheda gialla in-evidenza">
-      <p class="etichetta" style="color:var(--ink)">Durata prevista</p>
-      <p class="titolo num">circa ${E.formatDurata(durata)}</p>
-      <p>Fine prevista alle ${E.formatOra(crono.fine)}. Turni da ${E.durataTurnoMin(c)} minuti, ${c.cambio} minuti tra un turno e l'altro, ${c.spiegazione} di spiegazione iniziale e ${c.premiazione} di premiazione.</p>
-    </div>
-    <button class="btn primario blocco" data-azione="salva-config">Salva e continua ${ICONE.freccia}</button>`;
+      <p class="muto testo-s">${n >= 3 ? `Con ${n} coppie e il sistema scelto: massimo ${max >= 20 ? 'senza limite pratico' : `${max} turni`}.` : 'Il massimo dipende dal numero di coppie, che si conosce dopo le presenze.'}</p>
+      ${errTurni ? avviso('Troppi turni', `Con ${n} coppie e il sistema ${SISTEMI[c.sistema].nome} si arriva al massimo a ${max} turni.`) : ''}` })}
+    ${card({ testa: 'Sistema di abbinamento', corpo: Object.entries(SISTEMI).map(([k, s]) => {
+      const mk = E.maxTurni(k, n);
+      const ok = n < 3 || c.turni <= mk;
+      return `<button class="opzione" role="radio" aria-checked="${c.sistema === k}" data-azione="cfg" data-k="sistema" data-v="${k}">
+        <span class="rombo"></span><span class="colonna cresce"><span class="riga spazio"><strong>${s.nome}</strong>${n >= 3 && k === sugg ? '<span class="badge verde">Consigliato</span>' : ''}</span>
+        <span class="testo-s">${s.descrizione}${n >= 3 && !ok ? ` Con ${n} coppie: massimo ${mk} turni.` : ''}</span></span></button>`;
+    }).join('') })}
+    ${card({ cls: 'gialla', corpo: `
+      <div class="riga spazio"><span class="etichetta">Durata prevista</span><span class="badge nero">Fine ${E.formatOra(crono.fine)}</span></div>
+      <p class="titolo num">${E.formatDurata(durata)}</p>
+      <div class="tiles">${tile('Turno', `${E.durataTurnoMin(c)}<small>min</small>`, 'bianco')}${tile('Cambio', `${c.cambio}<small>min</small>`, 'bianco')}${tile('Inizio', esc(c.inizio), 'bianco')}</div>` })}
+    <button class="btn primario blocco-w" data-azione="salva-config">Salva e continua ${ICONE.freccia}</button>`;
 }
 
 function setupGiocatori() {
@@ -288,37 +369,41 @@ function setupGiocatori() {
   const pres = pl.filter(([, p]) => p.present).length;
   const bloccate = Object.keys(S.data.pairs).length > 0;
   return `
-    <div class="scheda"><div class="riga spazio"><p class="etichetta">Giocatori</p><span class="num"><strong>${pres}</strong> presenti su ${pl.length} iscritti</span></div>
-      ${bloccate ? '<div class="avviso info">Le coppie sono confermate: iscritti e presenze sono bloccati.</div>' : `
+    ${card({ testa: 'Rilevazione presenze', testaCls: 'blu', destra: '<span class="badge giallo">Admin</span>', corpo: `
+      <div class="tiles">${tile('Iscritti', pl.length)}${tile('Presenti', pres, 'giallo')}${tile('Assenti', pl.length - pres, pl.length - pres ? 'rosso' : '')}</div>
+      ${bloccate ? avviso('Coppie confermate', 'Iscritti e presenze sono bloccati.', 'info') : `
       <div class="riga"><input id="nuovo-giocatore" class="input cresce" maxlength="40" placeholder="Nome e cognome" autocomplete="off" enterkeyhint="done">
-      <button class="btn giallo" data-azione="aggiungi-giocatore" aria-label="Aggiungi">${ICONE.piu}</button></div>`}
-    </div>
-    ${pres % 2 === 1 ? '<div class="avviso"><strong>Numero di giocatori dispari</strong><span>Aggiungi un sostituto o togli un giocatore per formare le coppie.</span></div>' : ''}
-    ${pl.length ? `<div class="elenco">${pl.map(([id, p]) => `
-      <div class="voce ${p.present ? '' : 'spento'}"><span class="cresce">${esc(p.name)}</span>
-        ${bloccate ? '' : `<button class="icona-btn" data-azione="rimuovi-giocatore" data-id="${id}" aria-label="Rimuovi ${esc(p.name)}">${ICONE.cestino}</button>`}
-        <button class="interruttore" role="switch" aria-checked="${!!p.present}" aria-label="Presente" data-azione="presenza" data-id="${id}" ${bloccate ? 'disabled' : ''}></button>
-      </div>`).join('')}</div>` : '<p class="testo-muto">Aggiungi gli iscritti. Il giorno del torneo segna chi è presente.</p>'}
-    <button class="btn primario blocco" data-azione="setup-tab" data-tab="coppie" ${pres < 6 || pres % 2 ? 'disabled' : ''}>Forma le coppie ${ICONE.freccia}</button>
-    ${pres < 6 ? '<p class="testo-muto">Servono almeno 6 giocatori presenti (3 coppie).</p>' : ''}`;
+      <button class="btn giallo" style="min-width:58px;padding:0" data-azione="aggiungi-giocatore" aria-label="Aggiungi">${ICONE.piu}</button></div>`}` })}
+    ${pres % 2 === 1 ? avviso('Giocatori dispari', 'Aggiungi un sostituto o togli un giocatore per formare le coppie.') : ''}
+    ${pl.length ? `<div class="elenco">${pl.map(([id, p], i) => `
+      <div class="voce ${p.present ? '' : 'spento'}"><span class="n num">${String(i + 1).padStart(2, '0')}</span>
+        <span class="cresce nome-p">${esc(p.name)}</span>
+        <button class="stato-btn" role="switch" aria-checked="${!!p.present}" data-azione="presenza" data-id="${id}" ${bloccate ? 'disabled' : ''}>${p.present ? 'Presente' : 'Assente'}</button>
+        ${bloccate ? '' : `<button class="icona-btn nudo" data-azione="rimuovi-giocatore" data-id="${id}" aria-label="Rimuovi ${esc(p.name)}">${ICONE.cestino}</button>`}
+      </div>`).join('')}</div>` : card({ cls: 'crema', corpo: '<p>Aggiungi gli iscritti. Il giorno del torneo tocca "Presente" o "Assente" per ognuno.</p>' })}
+    <button class="btn primario blocco-w" data-azione="setup-tab" data-tab="coppie" ${pres < 6 || pres % 2 ? 'disabled' : ''}>Forma le coppie ${ICONE.freccia}</button>
+    ${pres < 6 ? '<p class="muto testo-s">Servono almeno 6 giocatori presenti (3 coppie).</p>' : ''}`;
 }
 
 function elencoCoppie() {
+  const mia = miaCoppia();
   return `<div class="elenco">${S.data.order.slice().sort().map((id) => `
-    <div class="voce ${S.data.pairs[id].ritiroDalTurno ? 'spento' : ''} ${miaCoppia() === id ? 'mia' : ''}"><span class="tag giallo">Coppia ${id}</span><span class="cresce">${nomiCoppia(id)}</span>
-    ${S.data.pairs[id].ritiroDalTurno ? '<span class="tag muto">Ritirata</span>' : ''}</div>`).join('')}</div>`;
+    <div class="voce ${S.data.pairs[id].ritiroDalTurno ? 'spento' : ''} ${mia === id ? 'mia' : ''}"><span class="n giallo">${id}</span>
+      <span class="cresce"><span class="etichetta">Coppia ${id}</span><br>${nomiCoppia(id)}</span>
+      ${S.data.pairs[id].ritiroDalTurno ? '<span class="badge chiaro">Ritirata</span>' : mia === id ? '<span class="badge giallo">La tua</span>' : ''}</div>`).join('')}</div>`;
 }
 
 function setupCoppie() {
   const t = S.data;
   if (Object.keys(t.pairs).length) {
     const err = E.verificaAvvio(t);
-    return `<div class="avviso ok"><strong>Coppie confermate</strong><span>${t.order.length} coppie${t.order.length % 2 ? ': a ogni turno una coppia riposa' : ''}.</span></div>
+    return `${avviso('Coppie confermate', `${t.order.length} coppie${t.order.length % 2 ? ': a ogni turno una coppia riposa' : ''}.`, 'ok')}
       ${elencoCoppie()}
-      ${err.length ? `<div class="avviso">${err.map(esc).join('<br>')}<br>Correggi nella scheda "Torneo".</div>` : ''}
-      <div class="scheda gialla in-evidenza"><p><strong>${SISTEMI[t.config.sistema].nome}</strong>, ${t.config.turni} turni da ${t.config.smazzate} smazzate (${E.durataTurnoMin(t.config)} minuti).</p>
-      <button class="btn primario blocco" data-azione="avvia" ${err.length ? 'disabled' : ''}>Avvia il torneo ${ICONE.freccia}</button></div>
-      <button class="btn blocco" data-azione="sblocca-coppie">Modifica le coppie</button>`;
+      ${err.length ? avviso('Da correggere', `${err.map(esc).join(' ')} Correggi nella scheda "Torneo".`) : ''}
+      ${card({ cls: 'gialla', corpo: `<div class="riga"><span class="mini-omino">${OMINO}</span><div class="colonna"><span class="etichetta">Pronto a partire</span>
+        <strong>${SISTEMI[t.config.sistema].nome}</strong><span class="testo-s">${t.config.turni} turni da ${t.config.smazzate} smazzate (${E.durataTurnoMin(t.config)} minuti)</span></div></div>
+        <button class="btn primario blocco-w" data-azione="avvia" ${err.length ? 'disabled' : ''}>Avvia il torneo ${ICONE.freccia}</button>` })}
+      <button class="btn blocco-w" data-azione="sblocca-coppie">Modifica le coppie</button>`;
   }
   const pres = giocatoriPresenti();
   const draft = Object.values(t.draft.coppie || {});
@@ -327,22 +412,26 @@ function setupCoppie() {
   const modo = t.draft.modo || 'casuale';
   const nomi = (id) => esc(t.players[id]?.name || '?');
   const erroreCoppie = draft.length ? E.verificaCoppie(draft.map((c) => [c.p1, c.p2]), pres, true) : null;
+  const nCoppie = Math.floor(pres.length / 2);
   return `
-    <div class="segmenti">${[['casuale', 'Casuale'], ['manuale', 'Manuale'], ['mista', 'Mista']].map(([k, l]) => `<button class="${modo === k ? 'attivo' : ''}" data-azione="modo-coppie" data-v="${k}">${l}</button>`).join('')}</div>
-    <p class="testo-muto">${modo === 'casuale' ? 'Tutte le coppie vengono estratte a sorte.' : modo === 'manuale' ? 'Tocca due giocatori per formare una coppia.' : 'Forma a mano le coppie che vuoi fissare, poi estrai a sorte le altre.'}</p>
-    ${liberi.length ? `<div class="scheda"><p class="etichetta">Da abbinare (${liberi.length})</p>
-      ${modo !== 'casuale' ? `<div class="chips">${liberi.map((id) => `<button class="chip ${S.selezione === id ? 'scelto' : ''}" data-azione="scegli" data-id="${id}">${nomi(id)}</button>`).join('')}</div>` : `<p>${liberi.map(nomi).join(', ')}</p>`}
-      ${modo !== 'manuale' ? `<button class="btn giallo blocco" data-azione="estrai" ${liberi.length < 2 ? 'disabled' : ''}>${ICONE.sorteggio} ${modo === 'mista' ? 'Estrai le restanti' : 'Estrai le coppie'}</button>` : ''}
-    </div>` : ''}
+    ${card({ testa: 'Metodo di composizione', destra: '<span class="badge rosso">Admin</span>', corpo: `
+      <div class="metodi">${[['casuale', 'Casuale', ICONE.sorteggio], ['manuale', 'Manuale', ICONE.utenti], ['mista', 'Mista', ICONE.lucchetto]].map(([k, l, ic]) => `<button class="metodo ${modo === k ? 'attivo' : ''}" data-azione="modo-coppie" data-v="${k}">${ic}${l}</button>`).join('')}</div>
+      <p class="testo-s muto">${modo === 'casuale' ? 'Tutte le coppie vengono estratte a sorte.' : modo === 'manuale' ? 'Tocca due giocatori per formare una coppia.' : 'Forma a mano le coppie da fissare, poi estrai a sorte le altre.'}</p>` })}
+    ${card({ cls: 'gialla', corpo: `<div class="riga"><span class="mini-omino">${OMINO}</span><div class="colonna"><span class="etichetta rosso-t">Tavoli e coppie</span>
+      <h3 class="titolo-m">${draft.length} coppie formate</h3><span class="testo-s">${liberi.length ? `${liberi.length} giocatori da abbinare` : 'Tutti i presenti sono abbinati'}</span></div></div>
+      <div class="tiles">${tile('Tavoli', Math.floor(nCoppie / 2), 'bianco')}${tile('Giocatori', pres.length, 'bianco')}${tile('Riposo', nCoppie % 2 ? '1 coppia' : 'Nessuno', 'bianco').replace('class="val num"', 'class="val medio"')}</div>` })}
+    ${liberi.length ? card({ testa: `Da abbinare (${liberi.length})`, corpo: `
+      ${modo !== 'casuale' ? `<div class="chips">${liberi.map((id) => `<button class="chip ${S.selezione === id ? 'scelto' : ''}" data-azione="scegli" data-id="${id}">${nomi(id)}</button>`).join('')}</div>` : `<p class="testo-s">${liberi.map(nomi).join(', ')}</p>`}
+      ${modo !== 'manuale' ? `<button class="btn giallo blocco-w" data-azione="estrai" ${liberi.length < 2 ? 'disabled' : ''}>${ICONE.sorteggio} ${modo === 'mista' ? 'Estrai le restanti' : 'Estrai le coppie'}</button>` : ''}` }) : ''}
     ${draft.length ? `<div class="elenco">${Object.entries(t.draft.coppie).map(([k, c], i) => `
-      <div class="voce"><span class="tag ${c.bloccata ? 'blu' : 'giallo'}">${c.bloccata ? ICONE.lucchetto.replace('<svg', '<svg width="14" height="14"') : ''} ${i + 1}</span>
-        <span class="cresce">${nomi(c.p1)} e ${nomi(c.p2)}</span>
-        <button class="icona-btn" data-azione="sciogli" data-k="${k}" aria-label="Sciogli la coppia">${ICONE.chiudi}</button></div>`).join('')}</div>` : ''}
-    ${draft.length && modo !== 'manuale' ? `<button class="btn blocco" data-azione="ri-estrai">${ICONE.azzera} Estrai di nuovo</button>` : ''}
-    ${pres.length % 2 ? '<div class="avviso">Numero di giocatori presenti dispari: sistema le presenze prima di confermare.</div>' : ''}
-    ${erroreCoppie ? `<div class="avviso"><strong>Coppie da correggere</strong><span>${esc(erroreCoppie)} Sciogli le coppie sbagliate oppure usa "Estrai di nuovo".</span></div>` : ''}
-    <button class="btn primario blocco" data-azione="conferma-coppie" ${liberi.length || draft.length < 3 || erroreCoppie ? 'disabled' : ''}>Conferma coppie ${ICONE.freccia}</button>
-    <p class="testo-muto">${draft.length ? `${draft.length} coppie${draft.length % 2 ? ': a ogni turno una coppia riposa' : ''}. ` : ''}Dopo la conferma le coppie restano fisse per tutto il torneo.</p>`;
+      <div class="voce"><span class="n ${c.bloccata ? '' : 'giallo'} num">${String(i + 1).padStart(2, '0')}</span>
+        <span class="cresce"><span class="etichetta">${c.bloccata ? 'Fissata a mano' : 'Estratta'}</span><br>${nomi(c.p1)} e ${nomi(c.p2)}</span>
+        <button class="icona-btn nudo" data-azione="sciogli" data-k="${k}" aria-label="Sciogli la coppia">${ICONE.chiudi}</button></div>`).join('')}</div>` : ''}
+    ${draft.length && modo !== 'manuale' ? `<button class="btn blocco-w" data-azione="ri-estrai">${ICONE.azzera} Estrai di nuovo</button>` : ''}
+    ${pres.length % 2 ? avviso('Giocatori dispari', 'Sistema le presenze prima di confermare.') : ''}
+    ${erroreCoppie ? avviso('Coppie da correggere', `${esc(erroreCoppie)} Sciogli le coppie sbagliate oppure usa "Estrai di nuovo".`) : ''}
+    <button class="btn primario blocco-w" data-azione="conferma-coppie" ${liberi.length || draft.length < 3 || erroreCoppie ? 'disabled' : ''}>Conferma coppie ${ICONE.freccia}</button>
+    <p class="muto testo-s">Dopo la conferma le coppie restano fisse per tutto il torneo.</p>`;
 }
 
 // ---------- Turno in corso ----------
@@ -356,44 +445,43 @@ function vistaTurno() {
   const timer = r.timer;
   const adm = isAdmin();
   const tavoli = Object.entries(r.tables).sort((a, b) => a[0] - b[0]);
-  return `
-    <div class="scheda blu in-evidenza">
-      <div class="riga spazio"><p class="etichetta">${SISTEMI[t.config.sistema].nome}</p><span class="tag giallo">${sm} smazzate</span></div>
-      <h2 class="titolo">Turno ${n} di ${t.config.turni}</h2>
+  const fatti = tavoli.length - mancanti;
+  const stato = !timer || !timer.startedAt ? 'Da avviare' : timer.pausedAt ? 'In pausa' : 'In corso';
+  const pannello = card({ testa: 'Pannello del turno', testaCls: 'nera', destra: `<span class="badge ${stato === 'In corso' ? 'rosso' : 'giallo'}" id="timer-stato">${stato}</span>`, corpo: `
+    <div class="riga spazio"><div class="colonna"><span class="etichetta blu-t">${SISTEMI[t.config.sistema].nome}</span><h2 class="titolo-m">Turno ${n} di ${t.config.turni}</h2></div>
+      <span class="tile giallo" style="padding:8px 10px;text-align:center"><span class="etichetta">Smazzate</span><span class="val num">${sm}</span></span></div>
+    <div class="tiles">
+      <div class="tile bianco" style="grid-column: span 2"><span class="etichetta">Tempo residuo</span><span class="timer num" id="timer-testo">${E.durataTurnoMin(t.config)}:00</span></div>
+      ${tile('Risultati', `${fatti}<small>/${tavoli.length}</small>`)}
     </div>
-    <div class="scheda">
-      <div class="riga spazio"><p class="etichetta">Tempo residuo</p><span class="tag muto" id="timer-stato">${!timer || !timer.startedAt ? 'Da avviare' : timer.pausedAt ? 'In pausa' : 'In corso'}</span></div>
-      <div class="timer num" id="timer-testo">${E.durataTurnoMin(t.config)}:00</div>
-      <div class="barra"><div id="timer-barra" style="width:0%"></div></div>
-      ${adm ? `<div class="griglia-2">
-        ${!timer || !timer.startedAt ? `<button class="btn giallo" data-azione="timer" data-v="avvia">${ICONE.play} Avvia</button>`
-          : timer.pausedAt ? `<button class="btn giallo" data-azione="timer" data-v="riprendi">${ICONE.play} Riprendi</button>`
-          : `<button class="btn giallo" data-azione="timer" data-v="pausa">${ICONE.pausa} Pausa</button>`}
-        <button class="btn" data-azione="timer" data-v="azzera" ${!timer || !timer.startedAt ? 'disabled' : ''}>${ICONE.azzera} Azzera</button>
-      </div>` : ''}
-    </div>
-    ${(r.avvisi || []).length && adm ? `<div class="avviso info">${r.avvisi.map(esc).join('<br>')}</div>` : ''}
-    ${tavoli.map(([k, tb]) => {
-      const res = r.results[k];
-      const c = res ? E.calcolaPartita(res.a, res.b, sm) : null;
-      const miaQui = mia && (tb.a === mia || tb.b === mia);
-      return `<div class="scheda ${miaQui ? 'mia' : ''}">
-        <div class="riga spazio"><p class="etichetta">Tavolo ${k}${miaQui ? ' - il tuo tavolo' : ''}</p>
-          ${c ? '<span class="tag verde">Risultato inserito</span>' : '<span class="tag muto">In attesa</span>'}</div>
-        <div class="tavolo-vs">
-          <div class="lato"><span class="lettera">Coppia ${tb.a}</span><span class="nomi">${nomiCoppia(tb.a)}</span></div>
-          <span class="vs">VS</span>
-          <div class="lato"><span class="lettera">Coppia ${tb.b}</span><span class="nomi">${nomiCoppia(tb.b)}</span></div>
-        </div>
-        ${c ? `<div class="riga spazio"><span class="testo-muto num">${fmtN(res.a)} - ${fmtN(res.b)} punti</span><span class="punteggio num">${c.vpA} - ${c.vpB} <small class="etichetta">V.P.</small></span></div>` : ''}
-        ${adm ? `<button class="btn ${c ? '' : 'giallo'} piccolo" data-azione="apri-risultato" data-tav="${k}">${c ? `${ICONE.matita} Correggi` : `${ICONE.piu} Inserisci risultato`}</button>` : ''}
-      </div>`;
-    }).join('')}
-    ${Object.entries(r.byes).map(([id, motivo]) => `<div class="scheda crema ${mia === id ? 'mia' : ''}"><p class="etichetta">A riposo</p>
-      <p><strong>Coppia ${id}</strong> - ${nomiCoppia(id)}</p>
-      <p class="testo-muto">${motivo === 'ritiro' ? 'L\'avversaria si è ritirata. ' : ''}Riceve ${RIPOSO[sm].vp} V.P. e ${RIPOSO[sm].mp} M.P.</p></div>`).join('')}
-    ${adm ? `<button class="btn primario blocco" data-azione="apri-chiudi-turno" ${mancanti ? 'disabled' : ''}>${n >= t.config.turni ? 'Chiudi l\'ultimo turno' : 'Chiudi il turno'} ${ICONE.freccia}</button>
-      <p class="testo-muto">${mancanti ? `Mancano ${mancanti} risultati.` : 'Tutti i risultati sono inseriti.'}</p>` : ''}`;
+    <div class="barra"><div id="timer-barra" style="width:0%"></div></div>
+    <div class="colonna"><div class="riga spazio"><span class="etichetta">Risultati inseriti</span><span class="etichetta rosso-t">${Math.round((fatti / (tavoli.length || 1)) * 100)}%</span></div>
+      <div class="barra-seg">${tavoli.map(([k]) => `<span class="${r.results[k] ? 'pieno' : ''}"></span>`).join('')}</div></div>` });
+  const comandi = adm ? `<div class="sezione"><h2>Comandi</h2></div>
+    ${!timer || !timer.startedAt ? `<button class="comando" data-azione="timer" data-v="avvia"><span class="ico">${ICONE.play}</span><span><span class="t">Avvia il timer</span><span class="s">Parte per tutti i telefoni insieme</span></span></button>`
+      : timer.pausedAt ? `<button class="comando" data-azione="timer" data-v="riprendi"><span class="ico">${ICONE.play}</span><span><span class="t">Riprendi il timer</span><span class="s">Il tempo riparte da dove si era fermato</span></span></button>`
+      : `<button class="comando" data-azione="timer" data-v="pausa"><span class="ico">${ICONE.pausa}</span><span><span class="t">Metti in pausa</span><span class="s">Per un imprevisto al tavolo</span></span></button>`}
+    ${timer && timer.startedAt ? `<button class="comando bianco" data-azione="timer" data-v="azzera"><span class="ico">${ICONE.azzera}</span><span><span class="t">Azzera il timer</span><span class="s">Torna a ${E.durataTurnoMin(t.config)} minuti</span></span></button>` : ''}` : '';
+  const listaTavoli = tavoli.map(([k, tb]) => {
+    const res = r.results[k];
+    const c = res ? E.calcolaPartita(res.a, res.b, sm) : null;
+    const miaQui = mia && (tb.a === mia || tb.b === mia);
+    return `<section class="card ${miaQui ? 'mia' : ''}"><div class="testa ${c ? 'verde' : 'gialla'}"><span class="riga"><span class="numtav num">${String(k).padStart(2, '0')}</span><span class="etichetta">Tavolo${miaQui ? ' - il tuo' : ''}</span></span>
+        <span class="badge ${c ? 'blu' : 'giallo'}">${c ? 'Risultato inserito' : 'In attesa'}</span></div>
+      <div class="corpo"><div class="vs-riga"><div><div class="chi"><span class="nw">Coppia ${tb.a}</span> <span class="nw"><span class="vs">VS</span>Coppia ${tb.b}</span></div>
+        <div class="nomi">${nomiCoppia(tb.a)}<br>${nomiCoppia(tb.b)}</div>${c ? `<div class="nomi num">Punti ${fmtN(res.a)} - ${fmtN(res.b)}</div>` : ''}</div>
+        <div class="vp-box"><div class="val num">${c ? `${c.vpA} - ${c.vpB}` : '-'}</div><div class="etichetta">V.P.</div></div></div>
+        ${adm ? `<button class="btn ${c ? '' : 'giallo'} piccolo blocco-w" data-azione="apri-risultato" data-tav="${k}">${c ? `${ICONE.matita} Correggi risultato` : `${ICONE.piu} Inserisci risultato`}</button>` : ''}</div></section>`;
+  }).join('');
+  const riposi = Object.entries(r.byes).map(([id, motivo]) => card({ testa: 'A riposo', testaCls: 'blu', cls: mia === id ? 'mia' : '', corpo: `
+    <div class="riga"><span class="mini-omino" style="width:52px;height:52px;background:var(--giallo)">${ICONE.luna}</span><div class="colonna"><strong>Coppia ${id}</strong><span class="testo-s">${nomiCoppia(id)}</span>
+    <span class="testo-s muto">${motivo === 'ritiro' ? 'L\'avversaria si è ritirata. ' : ''}Riceve ${RIPOSO[sm].vp} V.P. e ${RIPOSO[sm].mp} M.P.</span></div></div>` })).join('');
+  return `${pannello}${comandi}
+    ${(r.avvisi || []).length && adm ? avviso('Nota', r.avvisi.map(esc).join(' '), 'info') : ''}
+    <div class="sezione"><h2>Tavoli (${tavoli.length})</h2><span class="badge chiaro">${mancanti ? `${mancanti} in attesa` : 'Tutti inseriti'}</span></div>
+    ${listaTavoli}${riposi}
+    ${adm ? `<button class="comando rosso" data-azione="apri-chiudi-turno" ${mancanti ? 'disabled' : ''}><span class="ico">${ICONE.lucchetto}</span><span><span class="t">${n >= t.config.turni ? 'Chiudi l\'ultimo turno' : 'Chiudi il turno'}</span>
+      <span class="s">${mancanti ? `Mancano ${mancanti} risultati` : n >= t.config.turni ? 'La classifica diventa definitiva' : `Genera gli abbinamenti del turno ${n + 1}`}</span></span></button>` : ''}`;
 }
 
 // ---------- Classifica ----------
@@ -402,7 +490,7 @@ function tabellaClassifica(cl) {
   return `<table class="classifica num"><thead><tr><th style="text-align:center">#</th><th>Coppia</th><th>V.P.</th><th>M.P.</th><th>G</th></tr></thead><tbody>
     ${cl.map((r) => `<tr class="${r.pos === 1 ? 'primo' : ''} ${mia === r.id ? 'mia' : ''}">
       <td class="pos">${r.pos}</td>
-      <td><strong>Coppia ${r.id}</strong>${r.ritirata ? ' <span class="tag muto">Ritirata</span>' : ''}<small>${nomiCoppia(r.id)}</small>${r.decisoDa ? `<small>Parità: ${r.decisoDa}</small>` : ''}</td>
+      <td><strong>Coppia ${r.id}</strong>${r.ritirata ? ' <span class="badge chiaro">Ritirata</span>' : ''}<small>${nomiCoppia(r.id)}</small>${r.decisoDa ? `<small>Parità: ${r.decisoDa}</small>` : ''}</td>
       <td class="vp">${r.vp}</td><td>${fmt(r.mp)}</td><td>${r.giocate}${r.riposi ? `<small>+${r.riposi}R</small>` : ''}</td></tr>`).join('')}
   </tbody></table>`;
 }
@@ -410,11 +498,16 @@ function tabellaClassifica(cl) {
 function vistaClassifica() {
   const t = S.data;
   const chiusi = E.turniChiusi(t);
-  if (!chiusi.length) return `<h2 class="titolo">Classifica</h2><div class="scheda crema"><p>La classifica compare dopo la chiusura del primo turno.</p></div>`;
+  if (!chiusi.length) return card({ testa: 'Classifica', testaCls: 'gialla', corpo: `<div class="riga"><span class="mini-omino">${OMINO}</span><p>La classifica compare dopo la chiusura del primo turno.</p></div>` });
   const ult = chiusi[chiusi.length - 1];
-  return `<div class="riga spazio"><h2 class="titolo">Classifica</h2><span class="tag ${t.status === 'finished' ? 'giallo' : 'muto'}">${t.status === 'finished' ? 'Finale' : `Dopo il turno ${ult}`}</span></div>
-    ${tabellaClassifica(E.classifica(t))}
-    <p class="testo-muto">Ordine: V.P., poi M.P. A parità di entrambi: scontro diretto, partita vinta con il punteggio più alto, partita persa con il punteggio più favorevole, sorteggio. G = partite giocate, R = riposi.</p>`;
+  const cl = E.classifica(t);
+  const mia = miaCoppia();
+  const io = mia ? cl.find((r) => r.id === mia) : null;
+  return `${io ? card({ testa: 'La tua coppia', testaCls: 'gialla', corpo: `<div class="riga spazio"><div class="colonna"><span class="titolo-m">${io.pos}° posto</span><span class="testo-s">${nomiCoppia(io.id)}</span></div>
+      <div class="vp-box"><div class="val num">${io.vp}</div><div class="etichetta">V.P.</div></div></div>` }) : ''}
+    <div class="sezione"><h2>Classifica</h2><span class="badge ${t.status === 'finished' ? 'giallo' : 'chiaro'}">${t.status === 'finished' ? 'Finale' : `Dopo il turno ${ult}`}</span></div>
+    ${tabellaClassifica(cl)}
+    <p class="muto testo-s">Ordine: V.P., poi M.P. A parità di entrambi: scontro diretto, partita vinta con il punteggio più alto, partita persa con il punteggio più favorevole, sorteggio. G = partite giocate, R = riposi.</p>`;
 }
 
 // ---------- Finale ----------
@@ -422,7 +515,9 @@ function vistaFinale() {
   const cl = E.classifica(S.data);
   const podio = [cl[1], cl[0], cl[2]];
   const g = (r, cls, posto) => (r ? `<div class="gradino ${cls}"><span class="posto">${posto}</span><strong>Coppia ${r.id}</strong><span class="chi">${nomiCoppia(r.id)}</span><span class="num"><strong>${r.vp}</strong> V.P.</span></div>` : '<div></div>');
-  return `<div class="hero compatto"><div class="forma-rossa"></div>${OMINO}<div class="fascia"><h2 class="titolo">Torneo concluso</h2></div></div>
+  return `<section class="hero"><div class="arte"><div class="diag"></div><div class="rossa"></div>${OMINO}</div>
+      <div class="testo"><span class="badge rosso" style="align-self:flex-start">Classifica finale</span><h2 class="titolo-m">Torneo<br><span class="rosso-t">concluso</span></h2></div>
+      <div class="piede"><span>${SEME.cuori}Cuori</span><span>${SEME.quadri}Quadri</span></div><div class="angolo"></div></section>
     <div class="podio">${g(podio[0], 'g2', '2°')}${g(podio[1], 'g1', '1°')}${g(podio[2], 'g3', '3°')}</div>
     ${tabellaClassifica(cl)}
     <div class="griglia-2"><button class="btn giallo" data-azione="condividi-classifica">${ICONE.condividi} Condividi</button>
@@ -432,23 +527,26 @@ function vistaFinale() {
 // ---------- Storico e regolamento ----------
 function vistaStorico() {
   const t = S.data;
-  const seg = `<div class="segmenti"><button class="${S.storicoTab === 'storico' ? 'attivo' : ''}" data-azione="storico-tab" data-v="storico">Storico</button><button class="${S.storicoTab === 'regolamento' ? 'attivo' : ''}" data-azione="storico-tab" data-v="regolamento">Regolamento</button></div>`;
-  if (S.storicoTab === 'regolamento') return seg + vistaRegolamento();
+  const hero = `<section class="hero" style="min-height:190px"><div class="arte"><div class="diag"></div><div class="rossa"></div>${OMINO}</div>
+    <div class="testo"><span class="badge rosso" style="align-self:flex-start">Registro</span><h2 class="titolo-m">Storico<br><span class="rosso-t">e regole</span></h2></div>
+    <div class="piede"><span>${SEME.quadri}Quadri</span><span>${SEME.picche}Picche</span></div><div class="angolo"></div></section>`;
+  const seg = `<div class="segmenti"><button class="${S.storicoTab === 'storico' ? 'attivo' : ''}" data-azione="storico-tab" data-v="storico">Storico partite</button><button class="${S.storicoTab === 'regolamento' ? 'attivo' : ''}" data-azione="storico-tab" data-v="regolamento">Regolamento</button></div>`;
+  if (S.storicoTab === 'regolamento') return hero + seg + vistaRegolamento();
   const sm = t.config.smazzate;
   const turni = Object.values(t.rounds).sort((a, b) => b.n - a.n);
   const nomeMembro = (uid) => esc(S.members[uid]?.name || '');
-  return seg + (turni.length ? turni.map((r) => `
-    <div class="scheda"><div class="riga spazio"><h3 class="titolo-s">Turno ${r.n}</h3><span class="tag ${r.closed ? 'muto' : 'rosso'}">${r.closed ? 'Chiuso' : 'In corso'}</span></div>
-      ${Object.entries(r.tables).sort((a, b) => a[0] - b[0]).map(([k, tb]) => {
-        const res = r.results[k];
-        const c = res ? E.calcolaPartita(res.a, res.b, sm) : null;
-        return `<div class="colonna" style="border-top:1px solid var(--linea);padding-top:10px">
-          <div class="riga spazio"><span><strong>Tav. ${k}</strong> - Coppia ${tb.a} contro ${tb.b}</span>${c ? `<span class="punteggio num" style="font-size:20px">${c.vpA}-${c.vpB}</span>` : '<span class="tag muto">In attesa</span>'}</div>
-          ${c ? `<span class="testo-muto num">Punti ${fmtN(res.a)} - ${fmtN(res.b)} - M.P. ${fmt(c.mpA)}${res.by ? ` - inserito da ${nomeMembro(res.by)}` : ''}</span>` : ''}</div>`;
-      }).join('')}
-      ${Object.entries(r.byes).map(([id, m]) => `<p class="testo-muto">Riposo: Coppia ${id} (${m === 'ritiro' ? 'avversaria ritirata' : 'coppie dispari'}) - ${RIPOSO[sm].vp} V.P. e ${RIPOSO[sm].mp} M.P.</p>`).join('')}
-      ${Object.values(t.pairs).filter((p) => p.ritiroDalTurno === r.n).map((p) => `<p class="testo-muto">Ritiro: Coppia ${p.id} non gioca dal turno ${r.n}.</p>`).join('')}
-    </div>`).join('') : '<div class="scheda crema"><p>Le partite compaiono qui dopo l\'avvio del torneo.</p></div>');
+  return hero + seg + (turni.length ? turni.map((r) => card({ testa: `Turno ${r.n} - ${SISTEMI[t.config.sistema].nome}`, testaCls: r.closed ? '' : 'rossa',
+    destra: `<span class="badge ${r.closed ? 'chiaro' : 'giallo'}">${r.closed ? 'Chiuso' : 'In corso'}</span>`, corpo: `
+    ${Object.entries(r.tables).sort((a, b) => a[0] - b[0]).map(([k, tb]) => {
+      const res = r.results[k];
+      const c = res ? E.calcolaPartita(res.a, res.b, sm) : null;
+      return `<div class="vs-riga" style="border-top:2px solid var(--crema-2);padding-top:12px"><div><div class="chi"><span class="nw">Coppia ${tb.a}</span> <span class="nw"><span class="vs">VS</span>Coppia ${tb.b}</span></div>
+        <div class="nomi num">Tavolo ${k}${c ? ` - punti ${fmtN(res.a)} - ${fmtN(res.b)} - M.P. ${fmt(c.mpA)}` : ''}${res && res.by ? `<br>Inserito da ${nomeMembro(res.by)}` : ''}</div></div>
+        <div class="vp-box"><div class="val num">${c ? `${c.vpA} - ${c.vpB}` : '-'}</div><div class="etichetta">V.P.</div></div></div>`;
+    }).join('')}
+    ${Object.entries(r.byes).map(([id, m]) => `<p class="testo-s"><span class="badge blu">Riposo</span> Coppia ${id} (${m === 'ritiro' ? 'avversaria ritirata' : 'coppie dispari'}): ${RIPOSO[sm].vp} V.P. e ${RIPOSO[sm].mp} M.P.</p>`).join('')}
+    ${Object.values(t.pairs).filter((p) => p.ritiroDalTurno === r.n).map((p) => `<p class="testo-s"><span class="badge rosso">Ritiro</span> Coppia ${p.id} non gioca dal turno ${r.n}.</p>`).join('')}` })).join('')
+    : card({ cls: 'crema', corpo: '<p>Le partite compaiono qui dopo l\'avvio del torneo.</p>' }));
 }
 
 function vistaRegolamento() {
@@ -456,20 +554,20 @@ function vistaRegolamento() {
   const tab = TABELLE_VP[c.smazzate];
   let prec = -5;
   return `
-    <div class="scheda"><h3 class="titolo-s">Questo torneo</h3>
+    ${card({ testa: 'Questo torneo', testaCls: 'blu', corpo: `
       <p><strong>${SISTEMI[c.sistema].nome}</strong>: ${SISTEMI[c.sistema].descrizione}</p>
-      <p>${c.turni} turni da ${c.smazzate} smazzate, ${E.durataTurnoMin(c)} minuti per turno${c.riduzione ? ` (tempo ridotto di ${c.riduzione} min)` : ''}.</p>
-      <p>Allo scadere del tempo non si inizia una nuova smazzata: si gioca l'ultimo giro previsto dal regolamento e, se nessuno chiude, nessuna coppia prende i 100 punti di chiusura.</p></div>
-    <div class="scheda"><h3 class="titolo-s">Punti vittoria</h3>
-      <p>La differenza tra i punti delle due coppie (M.P.) si converte in V.P. Il totale per tavolo fa sempre 20.</p>
-      <table class="classifica num"><thead><tr><th style="text-align:left">Differenza M.P.</th><th>V.P.</th></tr></thead><tbody>
-      ${tab.map(([max, vp]) => { const da = prec + 5; prec = max; return `<tr><td style="text-align:left">${max === Infinity ? `${fmtN(da)} e oltre` : `${fmtN(da)} - ${fmtN(max)}`}</td><td>${vp} - ${20 - vp}</td></tr>`; }).join('')}
-      </tbody></table></div>
-    <div class="scheda"><h3 class="titolo-s">Riposo</h3>
-      <p>Con coppie dispari, a ogni turno una coppia riposa e riceve ${RIPOSO[c.smazzate].vp} V.P. e ${RIPOSO[c.smazzate].mp} M.P. Una coppia può riposare una sola volta. Con il sistema danese riposa l'ultima in classifica che non ha ancora riposato (al primo turno, per sorteggio).</p>
-      <p>Se una coppia si ritira, i risultati già giocati restano validi e chi doveva incontrarla riceve il punteggio di riposo.</p></div>
-    <div class="scheda"><h3 class="titolo-s">Classifica e parità</h3><ol style="margin:0;padding-left:20px">${CRITERI_PARITA.map((x) => `<li>${x}</li>`).join('')}</ol></div>
-    <div class="scheda crema"><p class="etichetta">Fonti</p>${FONTI.map((f) => `<p class="testo-muto">${f}</p>`).join('')}</div>`;
+      <div class="tiles">${tile('Turni', c.turni, 'giallo')}${tile('Smazzate', c.smazzate)}${tile('Minuti', E.durataTurnoMin(c))}</div>
+      <p class="testo-s">Allo scadere del tempo non si inizia una nuova smazzata: si gioca l'ultimo giro previsto dal regolamento e, se nessuno chiude, nessuna coppia prende i 100 punti di chiusura.</p>` })}
+    ${card({ testa: 'Punti vittoria', corpo: `
+      <p class="testo-s">La differenza tra i punti delle due coppie (M.P.) si converte in V.P. Il totale per tavolo fa sempre 20.</p>
+      <table class="classifica num" style="box-shadow:none"><thead><tr><th style="text-align:left">Differenza M.P.</th><th>V.P.</th></tr></thead><tbody>
+      ${tab.map(([max, vp]) => { const da = prec + 5; prec = max; return `<tr><td style="text-align:left">${max === Infinity ? `${fmtN(da)} e oltre` : `${fmtN(da)} - ${fmtN(max)}`}</td><td class="vp">${vp} - ${20 - vp}</td></tr>`; }).join('')}
+      </tbody></table>` })}
+    ${card({ testa: 'Riposo e ritiri', corpo: `
+      <p class="testo-s">Con coppie dispari, a ogni turno una coppia riposa e riceve ${RIPOSO[c.smazzate].vp} V.P. e ${RIPOSO[c.smazzate].mp} M.P. Una coppia può riposare una sola volta. Con il sistema danese riposa l'ultima in classifica che non ha ancora riposato (al primo turno, per sorteggio).</p>
+      <p class="testo-s">Se una coppia si ritira, i risultati già giocati restano validi e chi doveva incontrarla riceve il punteggio di riposo.</p>` })}
+    ${card({ testa: 'Classifica e parità', corpo: `<ol style="margin:0;padding-left:20px">${CRITERI_PARITA.map((x) => `<li>${x}</li>`).join('')}</ol>` })}
+    ${card({ testa: 'Fonti', cls: 'crema', corpo: FONTI.map((f) => `<p class="testo-s muto">${f}</p>`).join('') })}`;
 }
 
 // ---------- Altro ----------
@@ -481,29 +579,25 @@ function vistaAltro() {
   const giocatori = Object.entries(t.players).sort((a, b) => a[1].name.localeCompare(b[1].name, 'it'));
   const attive = t.status === 'running' ? E.coppieAttive(t, E.turnoCorrente(t)) : [];
   return `
-    <div class="scheda blu in-evidenza"><p class="etichetta">Codice invito</p>
-      <div class="codice num">${esc(S.meta.code || '')}</div>
-      <div class="griglia-2"><button class="btn piccolo" data-azione="copia-codice">${ICONE.copia} Copia link</button><button class="btn giallo piccolo" data-azione="condividi-codice">${ICONE.condividi} Condividi</button></div>
-    </div>
-    <div class="scheda"><p class="etichetta">Chi sei?</p>
-      <p class="testo-muto">Scegli il tuo nome per vedere evidenziati il tuo tavolo e la tua coppia.</p>
+    ${card({ testa: 'Invito al torneo', testaCls: 'rossa', destra: '<span class="badge giallo">Attivo</span>', cls: 'blu', corpo: `
+      <div class="riga spazio"><h2 class="titolo">Accesso<br>torneo</h2><span class="mini-omino" style="width:64px;height:64px;background:var(--giallo)">${OMINO}</span></div>
+      <div class="codice-box"><span class="etichetta">Codice invito</span><span class="codice num">${esc(S.meta.code || '')}</span></div>
+      <div class="griglia-2"><button class="btn piccolo" data-azione="copia-codice">${ICONE.copia} Copia link</button><button class="btn primario piccolo" data-azione="condividi-codice">${ICONE.condividi} Condividi</button></div>` })}
+    ${card({ testa: 'Chi sei?', corpo: `
+      <p class="testo-s muto">Scegli il tuo nome per vedere evidenziati il tuo tavolo e la tua coppia.</p>
       <select class="input" data-campo="mio-player" id="mio-player"><option value="">Non gioco / non indicato</option>
-        ${giocatori.map(([id, p]) => `<option value="${id}" ${mioPlayer === id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select>
-    </div>
-    <div class="scheda"><p class="etichetta">Partecipanti (${membri.length})</p>
-      <div class="elenco">${membri.map(([uid, m]) => `<div class="voce"><span class="cresce">${esc(m.name)}${uid === S.user.uid ? ' (tu)' : ''}</span>
-        <span class="tag ${m.role === 'admin' ? 'blu' : 'muto'}">${m.role === 'admin' ? 'Admin' : 'Partecipante'}</span>
-        ${adm ? `<button class="btn piccolo" data-azione="ruolo" data-uid="${uid}">${m.role === 'admin' ? 'Togli admin' : 'Rendi admin'}</button>` : ''}</div>`).join('')}</div>
-      ${adm ? '<p class="testo-muto">Deve restare almeno un admin.</p>' : ''}
-    </div>
-    ${adm && t.status === 'running' ? `<div class="scheda"><p class="etichetta">Ritiro di una coppia</p>
-      <p class="testo-muto">I risultati già giocati restano validi; nei turni successivi chi doveva incontrarla riceve il punteggio di riposo.</p>
+        ${giocatori.map(([id, p]) => `<option value="${id}" ${mioPlayer === id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select>` })}
+    <div class="sezione"><h2>Partecipanti (${membri.length})</h2>${adm ? '<span class="badge chiaro">Almeno un admin</span>' : ''}</div>
+    <div class="elenco">${membri.map(([uid, m], i) => `<div class="voce"><span class="n ${m.role === 'admin' ? '' : 'giallo'} num">${String(i + 1).padStart(2, '0')}</span>
+      <span class="cresce"><span class="nome">${esc(m.name)}${uid === S.user.uid ? ' (tu)' : ''}</span><br><span class="etichetta ${m.role === 'admin' ? 'blu-t' : 'muto'}">${m.role === 'admin' ? 'Admin' : 'Partecipante'}</span></span>
+      ${adm ? `<button class="btn piccolo" data-azione="ruolo" data-uid="${uid}">${m.role === 'admin' ? 'Togli admin' : 'Rendi admin'}</button>` : ''}</div>`).join('')}</div>
+    ${adm && t.status === 'running' ? card({ testa: 'Ritiro di una coppia', testaCls: 'gialla', corpo: `
+      <p class="testo-s">I risultati già giocati restano validi; nei turni successivi chi doveva incontrarla riceve il punteggio di riposo.</p>
       <select class="input" id="ritiro-coppia"><option value="">Scegli la coppia</option>${attive.map((id) => `<option value="${id}">Coppia ${id} - ${nomiCoppia(id)}</option>`).join('')}</select>
-      <button class="btn blocco" data-azione="apri-ritiro">Segna il ritiro</button></div>` : ''}
-    <div class="scheda"><p class="etichetta">Dati</p>
-      <button class="btn blocco" data-azione="esporta">${ICONE.scarica} Esporta il torneo (JSON)</button>
-      ${adm ? `<button class="btn blocco" data-azione="apri-elimina">${ICONE.cestino} Elimina il torneo</button>` : `<button class="btn blocco" data-azione="lascia">Togli dai miei tornei</button>`}
-    </div>`;
+      <button class="btn blocco-w" data-azione="apri-ritiro">Segna il ritiro</button>` }) : ''}
+    ${card({ testa: 'Dati', corpo: `
+      <button class="btn blocco-w" data-azione="esporta">${ICONE.scarica} Esporta il torneo (JSON)</button>
+      ${adm ? `<button class="btn primario blocco-w" data-azione="apri-elimina">${ICONE.cestino} Elimina il torneo</button>` : `<button class="btn blocco-w" data-azione="lascia">Togli dai miei tornei</button>`}` })}`;
 }
 
 // ================= Fogli (modali) =================
@@ -536,11 +630,11 @@ function renderFoglio() {
     c = `<h2 class="titolo">Nuovo torneo</h2>
       <div class="campo"><label for="crea-nome">Nome del torneo</label><input id="crea-nome" class="input" maxlength="80" placeholder="Es. Burraco del sabato"></div>
       <div class="campo"><label for="crea-data">Data</label><input id="crea-data" class="input" type="date" value="${new Date().toISOString().slice(0, 10)}"></div>
-      <button class="btn primario blocco" data-azione="crea">Crea torneo ${ICONE.freccia}</button>`;
+      <button class="btn primario blocco-w" data-azione="crea">Crea torneo ${ICONE.freccia}</button>`;
   } else if (f.tipo === 'entra') {
     c = `<h2 class="titolo">Entra con codice</h2>
       <div class="campo"><label for="entra-codice">Codice invito</label><input id="entra-codice" class="input grande" maxlength="7" placeholder="SB-XXXX" autocapitalize="characters" autocomplete="off" value="${esc(f.codice || '')}"></div>
-      <button class="btn primario blocco" data-azione="entra">Entra ${ICONE.freccia}</button>`;
+      <button class="btn primario blocco-w" data-azione="entra">Entra ${ICONE.freccia}</button>`;
   } else if (f.tipo === 'risultato') {
     const r = S.data.rounds[f.turno];
     const tb = r.tables[f.tav];
@@ -548,13 +642,13 @@ function renderFoglio() {
     const sm = S.data.config.smazzate;
     c = `<h2 class="titolo">Tavolo ${f.tav} - Turno ${f.turno}</h2>
       <div class="griglia-2">
-        <div class="campo"><label for="ris-a">Coppia ${tb.a}</label><input id="ris-a" class="input grande num" inputmode="numeric" pattern="-?[0-9]*" value="${res ? res.a : ''}" placeholder="0"><span class="testo-muto">${nomiCoppia(tb.a)}</span></div>
-        <div class="campo"><label for="ris-b">Coppia ${tb.b}</label><input id="ris-b" class="input grande num" inputmode="numeric" pattern="-?[0-9]*" value="${res ? res.b : ''}" placeholder="0"><span class="testo-muto">${nomiCoppia(tb.b)}</span></div>
+        <div class="campo"><label for="ris-a">Coppia ${tb.a}</label><input id="ris-a" class="input grande num" inputmode="numeric" pattern="-?[0-9]*" value="${res ? res.a : ''}" placeholder="0"><span class="muto testo-s">${nomiCoppia(tb.a)}</span></div>
+        <div class="campo"><label for="ris-b">Coppia ${tb.b}</label><input id="ris-b" class="input grande num" inputmode="numeric" pattern="-?[0-9]*" value="${res ? res.b : ''}" placeholder="0"><span class="muto testo-s">${nomiCoppia(tb.b)}</span></div>
       </div>
       <button class="link" data-azione="dettaglio-smazzate">${f.dettaglio ? 'Nascondi il dettaglio' : 'Inserisci smazzata per smazzata'}</button>
       ${f.dettaglio ? `<div class="colonna" style="gap:8px">${Array.from({ length: sm }, (_, i) => `<div class="griglia-2"><input class="input num smz" data-lato="a" inputmode="numeric" placeholder="Smazzata ${i + 1}" aria-label="Coppia ${tb.a}, smazzata ${i + 1}"><input class="input num smz" data-lato="b" inputmode="numeric" placeholder="Smazzata ${i + 1}" aria-label="Coppia ${tb.b}, smazzata ${i + 1}"></div>`).join('')}</div>` : ''}
-      <p class="testo-muto">Punti totali del turno, anche negativi. Il Burraco usa multipli di 5.</p>
-      <div class="scheda gialla" id="anteprima"></div>
+      <p class="muto testo-s">Punti totali del turno, anche negativi. Il Burraco usa multipli di 5.</p>
+      <div class="card gialla"><div class="corpo" id="anteprima"></div></div>
       <div class="griglia-2"><button class="btn" data-azione="chiudi-foglio">Annulla</button><button class="btn primario" data-azione="salva-risultato">Salva</button></div>`;
   } else if (f.tipo === 'conferma') {
     c = `<h2 class="titolo">${esc(f.titolo)}</h2><p>${esc(f.testo)}</p>
@@ -653,6 +747,16 @@ const azioni = {
   async 'entra-prova'() { const n = val('prova-nome'); if (!n) return toast('Scrivi il tuo nome.'); await S.store.signInProva(n); },
   async esci() { chiudiTorneo(); await S.store.signOut(); },
 
+  profilo() { vai('#/profilo'); },
+  filtro(el) { S.filtro = el.dataset.v; render(); },
+  async 'salva-profilo'() {
+    const nome = val('profilo-nome');
+    if (!nome) return toast('Scrivi un nome.');
+    try { await S.store.updateName(nome); S.user = { ...S.user, name: nome }; render(); toast('Nome salvato.'); } catch (e) { toast(erroreLeggibile(e)); }
+  },
+  async 'cambia-pw'() {
+    try { await S.store.resetPassword(S.user.email); toast('Ti abbiamo mandato un\'email per cambiare la password.'); } catch (e) { toast(erroreLeggibile(e)); }
+  },
   'apri-crea'() { apriFoglio('crea'); },
   'apri-entra'() { apriFoglio('entra'); },
   async crea() {
@@ -944,6 +1048,7 @@ function instrada() {
     apriFoglio('entra', { codice: decodeURIComponent(parti[1]) });
     return;
   }
+  if (parti[0] === 'profilo') { chiudiTorneo(); S.view = 'profilo'; render(); window.scrollTo(0, 0); return; }
   if (parti[0] === 't' && parti[1]) {
     S.view = 'torneo';
     S.tab = ['turno', 'classifica', 'storico', 'altro'].includes(parti[2]) ? parti[2] : 'turno';
@@ -961,7 +1066,7 @@ window.addEventListener('hashchange', instrada);
 
 function avviaUtente() {
   if (S.offLista) S.offLista();
-  S.offLista = S.store.myTournaments(S.user.uid, (lista) => { S.tornei = lista; if (S.view === 'home') render(); });
+  S.offLista = S.store.myTournaments(S.user.uid, (lista) => { S.tornei = lista; if (S.view === 'home' || S.view === 'profilo') render(); });
   if (S.codiceInSospeso) { const c = S.codiceInSospeso; S.codiceInSospeso = null; location.hash = `#/entra/${c}`; }
   instrada();
 }

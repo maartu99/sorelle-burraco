@@ -55,6 +55,11 @@ export const ICONE = {
   freccia: s('<line x1="4" y1="12" x2="20" y2="12"/><polyline points="14 6 20 12 14 18"/>'),
   sorteggio: s('<polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/>'),
   scarica: s('<line x1="12" y1="3" x2="12" y2="15"/><polyline points="7 10 12 15 17 10"/><line x1="4" y1="20" x2="20" y2="20"/>'),
+  chiave: s('<circle cx="8" cy="14" r="4"/><line x1="11" y1="11" x2="20" y2="2"/><line x1="16" y1="6" x2="19" y2="9"/>'),
+  luna: s('<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>'),
+  utenti: s('<circle cx="9" cy="8" r="3.5"/><path d="M2 20c0-4 3-6 7-6s7 2 7 6"/><circle cx="17" cy="9" r="2.5"/><path d="M17 14c3 0 5 2 5 5"/>'),
+  campana: s('<path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"/><line x1="10" y1="21" x2="14" y2="21"/>'),
+  bandiera: s('<line x1="5" y1="21" x2="5" y2="3"/><polygon points="5 4 19 4 15 9 19 14 5 14"/>'),
   lucchetto: s('<rect x="5" y="11" width="14" height="10"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>'),
 };
 

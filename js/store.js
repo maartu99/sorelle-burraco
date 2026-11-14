@@ -52,7 +52,7 @@ async function creaStoreFirebase() {
   fb.onValue(fb.ref(db, '.info/serverTimeOffset'), (s) => { offset = s.val() || 0; });
   fb.getRedirectResult(auth).catch(() => {});
 
-  const utente = (u) => u && { uid: u.uid, name: u.displayName || (u.email || '').split('@')[0], email: u.email };
+  const utente = (u) => u && { uid: u.uid, name: u.displayName || (u.email || '').split('@')[0], email: u.email, google: (u.providerData || []).some((p) => p.providerId === 'google.com') };
   const isAdminRole = (m, uid) => m && m[uid] && m[uid].role === 'admin';
 
   return {
@@ -74,6 +74,7 @@ async function creaStoreFirebase() {
       return utente({ ...c.user, displayName: name });
     },
     async resetPassword(email) { await fb.sendPasswordResetEmail(auth, email); },
+    async updateName(name) { await fb.updateProfile(auth.currentUser, { displayName: name }); },
     async signOut() { await fb.signOut(auth); },
 
     myTournaments(uid, cb) {
@@ -184,6 +185,8 @@ function creaStoreProva() {
       authCbs.forEach((f) => f(u));
     },
     async signOut() { sessionStorage.removeItem(KEY + '-utente'); authCbs.forEach((f) => f(null)); },
+    async updateName(name) { const u = { ...utenteSalvato(), name }; sessionStorage.setItem(KEY + '-utente', JSON.stringify(u)); },
+    async resetPassword() { /* non disponibile in modalità prova */ },
     myTournaments(uid, cb) {
       return sub(() => {
         const d = db0();
