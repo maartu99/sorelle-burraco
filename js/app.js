@@ -135,7 +135,7 @@ function render() {
     const el = document.getElementById(focusId);
     if (el) { el.focus({ preventScroll: true }); if (sel) try { el.setSelectionRange(sel[0], sel[1]); } catch (e) { /* */ } }
   }
-  window.scrollTo(0, scrollY);
+  if (scrollBloccato === null) window.scrollTo(0, scrollY);
   aggiornaTimer();
 }
 
@@ -507,13 +507,30 @@ function vistaAltro() {
 }
 
 // ================= Fogli (modali) =================
+// Blocca lo scorrimento della pagina sotto il foglio (anche su iPhone, dove overflow:hidden non basta).
+let scrollBloccato = null;
+function bloccaPagina() {
+  if (scrollBloccato !== null) return;
+  scrollBloccato = window.scrollY;
+  document.body.style.top = `-${scrollBloccato}px`;
+  document.body.classList.add('bloccato');
+}
+function sbloccaPagina() {
+  if (scrollBloccato === null) return;
+  const y = scrollBloccato;
+  scrollBloccato = null;
+  document.body.classList.remove('bloccato');
+  document.body.style.top = '';
+  window.scrollTo(0, y);
+}
+
 function apriFoglio(tipo, dati = {}) { S.sheet = { tipo, ...dati }; renderFoglio(); }
 function chiudiFoglio() { S.sheet = null; renderFoglio(); }
 
 function renderFoglio() {
   const f = S.sheet;
-  if (!f) { $foglio.innerHTML = ''; document.body.style.overflow = ''; return; }
-  document.body.style.overflow = 'hidden';
+  if (!f) { $foglio.innerHTML = ''; sbloccaPagina(); return; }
+  bloccaPagina();
   let c = '';
   if (f.tipo === 'crea') {
     c = `<h2 class="titolo">Nuovo torneo</h2>
