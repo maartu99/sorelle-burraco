@@ -24,8 +24,15 @@ export function senzaArray(v) {
 }
 
 // Differenze tra due alberi come aggiornamenti "percorso: valore" (null = cancella).
+// Coppie, ordine e bozza delle coppie si scrivono sempre per intero: due admin che
+// lavorano insieme non possono mescolare due versioni diverse (vince l'ultima, intera).
+const INTERI = new Set(['pairs', 'order', 'draft/coppie']);
 export function differenze(prima, dopo, base = '', out = {}) {
   const isObj = (x) => x && typeof x === 'object' && !Array.isArray(x);
+  if (INTERI.has(base)) {
+    if (JSON.stringify(prima) !== JSON.stringify(dopo)) out[base] = dopo === undefined ? null : dopo;
+    return out;
+  }
   if (Array.isArray(dopo) || Array.isArray(prima)) {
     if (JSON.stringify(prima) !== JSON.stringify(dopo)) out[base] = dopo === undefined ? null : dopo;
     return out;

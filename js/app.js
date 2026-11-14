@@ -1,7 +1,7 @@
-import * as E from './engine.js?v=7';
-import { TEMPI, SISTEMI, TABELLE_VP, RIPOSO, CRITERI_PARITA, FONTI, RIDUZIONE_MAX, SMAZZATE_AMMESSE } from './regolamento.js?v=7';
-import { creaStore } from './store.js?v=7';
-import { OMINO, MARCHIO, ICONE, GOOGLE, SEMI } from './grafica.js?v=7';
+import * as E from './engine.js?v=8';
+import { TEMPI, SISTEMI, TABELLE_VP, RIPOSO, CRITERI_PARITA, FONTI, RIDUZIONE_MAX, SMAZZATE_AMMESSE } from './regolamento.js?v=8';
+import { creaStore } from './store.js?v=8';
+import { OMINO, MARCHIO, ICONE, GOOGLE, SEMI } from './grafica.js?v=8';
 
 // ================= Stato =================
 const S = {
@@ -104,7 +104,16 @@ function nCoppiePreviste() {
 // ================= Salvataggio =================
 async function salva(nuovo, metaPatch) {
   const prima = S.data;
-  S.data = E.normalizza(nuovo);
+  const dopo = E.normalizza(nuovo);
+  // Regola fissa: un giocatore sta in una sola coppia. Nessun salvataggio può crearne una doppia.
+  const primaDoppi = new Set(prima ? E.giocatoriDoppi(prima) : []);
+  const nuoviDoppi = E.giocatoriDoppi(dopo).filter((p) => !primaDoppi.has(p));
+  if (nuoviDoppi.length) {
+    const nomi = nuoviDoppi.map((p) => dopo.players[p]?.name || '?').join(', ');
+    render();
+    return toast(`Non salvato: ${nomi} sarebbe in più di una coppia. Un giocatore può stare in una sola coppia.`);
+  }
+  S.data = dopo;
   render();
   try {
     await S.store.saveData(S.tid, prima, S.data);
@@ -122,6 +131,8 @@ async function salva(nuovo, metaPatch) {
     toast(erroreLeggibile(e));
   }
 }
+
+const FIRMA = '<footer class="firma">Powered by <strong>MAT</strong> &amp; <strong>NAT</strong></footer>';
 
 // ================= Render principale =================
 function render() {
@@ -145,6 +156,8 @@ function render() {
   else if (S.view === 'torneo') html = vistaTorneo();
   else if (S.view === 'profilo') html = vistaProfilo();
   $app.innerHTML = html;
+  const pagina = $app.querySelector('.contenuto');
+  if (pagina) pagina.insertAdjacentHTML('beforeend', FIRMA);
 
   for (const [id, v] of Object.entries(modificati)) {
     const el = document.getElementById(id);

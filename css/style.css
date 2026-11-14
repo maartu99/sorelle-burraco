@@ -78,6 +78,9 @@ p { margin: 0; }
 
 .contenuto { padding: var(--gap); padding-bottom: calc(var(--nav-h) + 28px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 18px; }
 .contenuto.senza-nav { padding-bottom: 32px; }
+.contenuto { min-height: calc(100vh - var(--header-h)); min-height: calc(100dvh - var(--header-h)); }
+.firma { margin-top: auto; padding-top: 8px; text-align: center; font-size: 11px; letter-spacing: .04em; color: var(--ink-2); }
+.firma strong { font-weight: 800; color: var(--ink); }
 
 /* ---------- Navigazione ---------- */
 .nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: var(--max); z-index: 20;

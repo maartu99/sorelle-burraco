@@ -475,7 +475,22 @@ export function verificaAvvio(t) {
   return errori;
 }
 
+// Giocatori presenti in più di una coppia (tra le coppie attive e nella bozza).
+// Restituisce gli id dei giocatori doppi: deve essere sempre vuoto.
+export function giocatoriDoppi(t) {
+  const doppi = new Set();
+  const controlla = (coppie) => {
+    const visti = new Set();
+    for (const c of coppie) for (const p of [c.p1, c.p2]) { if (!p) continue; if (visti.has(p)) doppi.add(p); visti.add(p); }
+  };
+  const attive = (t.order || []).filter((id) => t.pairs[id] && !t.pairs[id].ritiroDalTurno).map((id) => t.pairs[id]);
+  controlla(attive.length ? attive : Object.values(t.pairs || {}));
+  controlla(Object.values((t.draft && t.draft.coppie) || {}));
+  return [...doppi];
+}
+
 export function avviaTorneo(t) {
+  if (giocatoriDoppi(t).length) throw new Error('Un giocatore è in più di una coppia: correggi le coppie prima di avviare.');
   const errori = verificaAvvio(t);
   if (errori.length) throw new Error(errori.join(' '));
   const g = generaTurno(t, 1);
