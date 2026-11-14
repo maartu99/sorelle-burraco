@@ -59,8 +59,8 @@ button { cursor: pointer; }
   display: flex; align-items: center; gap: var(--gap-s); padding: 0 var(--gap);
   background: var(--bg); border-bottom: var(--bordo);
 }
-.testata h1 { flex: 1; margin: 0; font-family: 'Syne'; font-weight: 800; font-size: 17px; line-height: 1.1;
-  text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.testata h1 { flex: 1; min-width: 0; margin: 0; font-family: 'Syne'; font-weight: 800; font-size: 16px; line-height: 1.12;
+  text-transform: uppercase; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
 .testata .marchio { width: 32px; height: 32px; flex: none; }
 .icona-btn { width: 40px; height: 40px; flex: none; display: grid; place-items: center; background: none; border: 0; padding: 0; }
 .icona-btn svg { width: 24px; height: 24px; }
