@@ -1,7 +1,7 @@
-import * as E from './engine.js';
-import { TEMPI, SISTEMI, TABELLE_VP, RIPOSO, CRITERI_PARITA, FONTI, RIDUZIONE_MAX, SMAZZATE_AMMESSE } from './regolamento.js';
-import { creaStore } from './store.js';
-import { OMINO, MARCHIO, ICONE, GOOGLE, SEMI } from './grafica.js';
+import * as E from './engine.js?v=4';
+import { TEMPI, SISTEMI, TABELLE_VP, RIPOSO, CRITERI_PARITA, FONTI, RIDUZIONE_MAX, SMAZZATE_AMMESSE } from './regolamento.js?v=4';
+import { creaStore } from './store.js?v=4';
+import { OMINO, MARCHIO, ICONE, GOOGLE, SEMI } from './grafica.js?v=4';
 
 // ================= Stato =================
 const S = {
