@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<rect width="512" height="512" fill="#4f599e"/>
+<polygon points="300,-20 560,-20 560,300 360,250" fill="#b72206"/>
+<polygon points="-20,430 200,380 230,560 -20,560" fill="#f5c800"/>
+<g fill="none" transform="translate(36.9,94.0) scale(1.328)">
+<polygon fill="#041158" opacity="0.6" points="40,225 280,225 240,235 60,235"/>
+<polygon fill="#b72206" points="160,18 196,80 124,80"/>
+<polygon fill="#ab1900" points="160,18 178,80 124,80"/>
+<circle cx="160" cy="18" fill="#f5c800" r="6"/>
+<polygon fill="#38a169" points="124,80 196,80 186,132 134,132"/>
+<circle cx="148" cy="104" fill="#fcf9f8" r="14"/>
+<circle cx="148" cy="104" fill="#4f599e" r="7"/>
+<circle cx="146" cy="102" fill="#fcf9f8" r="2.5"/>
+<polygon fill="#b72206" points="168,110 188,118 168,124"/>
+<polygon fill="#f5c800" points="112,132 208,132 194,150 126,150"/>
+<polygon fill="#374185" points="116,150 160,150 160,215 106,205"/>
+<polygon fill="#b72206" points="160,150 204,150 214,205 160,215"/>
+<polyline points="118,155 70,180 84,212" stroke="#f5c800" stroke-linecap="square" stroke-linejoin="miter" stroke-width="12"/>
+<polygon fill="#ffbdb0" points="56,190 92,190 74,222"/>
+<line stroke="#fcf9f8" stroke-width="4" x1="74" x2="74" y1="222" y2="232"/>
+<line stroke="#fcf9f8" stroke-width="4" x1="62" x2="86" y1="232" y2="232"/>
+<polyline points="202,155 244,175 220,205" stroke="#f5c800" stroke-linecap="square" stroke-linejoin="miter" stroke-width="12"/>
+<g fill="none" transform="translate(205, 150) rotate(-15)"><rect fill="#fcf9f8" height="42" stroke="#1c1b1b" stroke-width="2" width="28"/><polygon fill="#b72206" points="14,10 20,21 14,32 8,21"/></g>
+<g fill="none" transform="translate(222, 142) rotate(12)"><rect fill="#ffe081" height="42" stroke="#1c1b1b" stroke-width="2" width="28"/><polygon fill="#1c1b1b" points="14,10 20,21 14,32 8,21"/></g>
+<g fill="none" transform="translate(238, 146) rotate(32)"><rect fill="#fcf9f8" height="42" stroke="#1c1b1b" stroke-width="2" width="28"/><polygon fill="#b72206" points="14,12 21,21 14,30 7,21"/></g>
+<polygon fill="#f5c800" opacity="0.85" points="26,45 80,10 95,25 41,60"/>
+<circle cx="282" cy="72" fill="#ffbdb0" r="18"/>
+<path d="M 270 72 A 12 12 0 0 1 294 72" fill="none" stroke="#1c1b1b" stroke-width="4"/>
+</g>
+</svg>
