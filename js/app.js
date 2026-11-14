@@ -1,7 +1,7 @@
-import * as E from './engine.js?v=8';
-import { TEMPI, SISTEMI, TABELLE_VP, RIPOSO, CRITERI_PARITA, FONTI, RIDUZIONE_MAX, SMAZZATE_AMMESSE } from './regolamento.js?v=8';
-import { creaStore } from './store.js?v=8';
-import { OMINO, MARCHIO, ICONE, GOOGLE, SEMI } from './grafica.js?v=8';
+import * as E from './engine.js?v=9';
+import { TEMPI, SISTEMI, TABELLE_VP, RIPOSO, CRITERI_PARITA, FONTI, RIDUZIONE_MAX, SMAZZATE_AMMESSE } from './regolamento.js?v=9';
+import { creaStore } from './store.js?v=9';
+import { OMINO, MARCHIO, ICONE, GOOGLE, SEMI } from './grafica.js?v=9';
 
 // ================= Stato =================
 const S = {
@@ -273,7 +273,7 @@ function vistaHome() {
   const f = S.filtro || 'tutti';
   const conta = (st) => tutti.filter((m) => m.status === st).length;
   const lista = f === 'tutti' ? tutti : tutti.filter((m) => m.status === f);
-  const filtri = [['tutti', `Tutti (${tutti.length})`], ['running', `In corso (${conta('running')})`], ['setup', `Da iniziare (${conta('setup')})`], ['finished', `Conclusi (${conta('finished')})`]];
+  const filtri = [['tutti', 'Tutti'], ['running', 'In corso'], ['setup', 'Da iniziare'], ['finished', 'Conclusi']];
   return `${testata({ titolo: 'I miei tornei', destra: bottoneProfilo() })}
     <div class="contenuto senza-nav">
       ${banda(['Tornei a coppie', 'Regolamento FIBur', 'Pinelle accese'])}

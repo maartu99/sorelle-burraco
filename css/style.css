@@ -198,9 +198,8 @@ p { margin: 0; }
 .segmenti button:first-child { border-left: 0; }
 .segmenti button.attivo { background: var(--ink); color: var(--giallo); }
 .segmenti button small { display: block; font-family: 'Space Grotesk'; font-weight: 500; letter-spacing: 0; text-transform: none; font-size: 12px; }
-.filtri { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
-.filtri::-webkit-scrollbar { display: none; }
-.filtri button { flex: none; min-height: 38px; padding: 0 12px; border: var(--b2); background: var(--carta); font-family: 'Anybody'; font-weight: 800; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+.filtri { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.filtri button { min-width: 0; min-height: 40px; padding: 4px 2px; border: var(--b2); background: var(--carta); color: var(--ink); font-family: 'Anybody'; font-weight: 800; font-size: clamp(9px, 2.55vw, 11px); line-height: 1.15; letter-spacing: .02em; text-transform: uppercase; text-align: center; overflow-wrap: normal; }
 .filtri button.attivo { background: var(--ink); color: var(--giallo); }
 
 .metodi { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
