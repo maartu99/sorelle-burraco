@@ -125,7 +125,9 @@ export function turniChiusi(t) {
 // ---------- Limiti e suggerimenti ----------
 
 export function maxTurni(sistema, nCoppie) {
-  if (nCoppie < 3) return 0;
+  if (nCoppie < 2) return 0;
+  // Due coppie: è una sfida, si gioca sempre allo stesso tavolo, per quanti turni si vuole.
+  if (nCoppie === 2) return 20;
   const dispari = nCoppie % 2 === 1;
   if (sistema === 'italiana') return dispari ? nCoppie : nCoppie - 1;
   if (sistema === 'mitchell') return Math.ceil(nCoppie / 2);
@@ -381,7 +383,13 @@ export function generaTurno(t, turno) {
   const attive = new Set(coppieAttive(t, turno));
   let coppie = [];
 
-  if (sistema === 'italiana' || sistema === 'mitchell') {
+  if (t.order.length === 2) {
+    // Sfida tra due coppie: sempre lo stesso tavolo, qualunque sia il sistema scelto.
+    const [x, y] = t.order;
+    if (attive.has(x) && attive.has(y)) coppie.push([x, y]);
+    else if (attive.has(x)) byes[x] = 'ritiro';
+    else if (attive.has(y)) byes[y] = 'ritiro';
+  } else if (sistema === 'italiana' || sistema === 'mitchell') {
     const schema = sistema === 'italiana'
       ? (calendarioItaliana(t.order)[turno - 1] || [])
       : schemaMitchell(t.order, turno);
@@ -468,7 +476,7 @@ export function confermaCoppie(t, coppie) {
 export function verificaAvvio(t) {
   const n = t.order.length;
   const errori = [];
-  if (n < 3) errori.push('Servono almeno 3 coppie.');
+  if (n < 2) errori.push('Servono almeno 2 coppie.');
   const max = maxTurni(t.config.sistema, n);
   if (t.config.turni < 1) errori.push('Serve almeno un turno.');
   if (t.config.turni > max) errori.push(`Con ${n} coppie e il sistema ${SISTEMI[t.config.sistema].nome} si possono fare al massimo ${max} turni.`);

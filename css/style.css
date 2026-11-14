@@ -295,6 +295,7 @@ select.input { background-image: linear-gradient(45deg, transparent 50%, var(--i
 
 /* ---------- Podio ---------- */
 .podio { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: end; gap: 8px; }
+.podio.due { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .podio .gradino { border: var(--b); display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 4px; padding: 10px 6px; text-align: center; box-shadow: var(--ombra-s); }
 .podio .posto { font-family: 'Syne'; font-weight: 800; font-size: 32px; line-height: 1; }
 .podio .chi { font-size: 13px; line-height: 1.2; font-weight: 700; }

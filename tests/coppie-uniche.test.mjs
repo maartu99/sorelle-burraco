@@ -49,3 +49,29 @@ test('due admin che salvano coppie diverse non mescolano le versioni', () => {
   assert.deepEqual(E.giocatoriDoppi(E.normalizza(db)), []);
   assert.deepEqual(db.pairs, B.pairs);
 });
+
+test('due coppie: sfida allo stesso tavolo per tutti i turni', () => {
+  for (const sistema of ['danese', 'danese_mod', 'italiana', 'mitchell']) {
+    let t = E.confermaCoppie(torneo(), [['g0', 'g1'], ['g2', 'g3']]);
+    for (const k of ['g4', 'g5', 'g6', 'g7']) t.players[k].present = false;
+    t = { ...t, config: { ...t.config, sistema, turni: 3, smazzate: 4 } };
+    assert.deepEqual(E.verificaAvvio(t), [], sistema);
+    t = E.avviaTorneo(t);
+    for (let n = 1; n <= 3; n++) {
+      const r = t.rounds[n];
+      assert.deepEqual(Object.values(r.tables).map((x) => [x.a, x.b].sort()), [['A', 'B']], `${sistema} turno ${n}`);
+      assert.deepEqual(r.byes, {});
+      const tav = Object.keys(r.tables)[0];
+      t = { ...t, rounds: { ...t.rounds, [n]: { ...r, results: { [tav]: E.calcolaPartita(1500 - n * 100, 900, t.config.smazzate) } } } };
+      t = E.chiudiTurno(t);
+    }
+    assert.equal(t.status, 'finished', sistema);
+    const cl = E.classifica(t, 3);
+    assert.equal(cl.length, 2);
+  }
+});
+
+test('meno di 2 coppie non si avvia', () => {
+  const t = E.confermaCoppie(torneo(), [['g0', 'g1']]);
+  assert.ok(E.verificaAvvio(t).length);
+});

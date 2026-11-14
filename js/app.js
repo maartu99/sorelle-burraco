@@ -1,7 +1,7 @@
-import * as E from './engine.js?v=9';
-import { TEMPI, SISTEMI, TABELLE_VP, RIPOSO, CRITERI_PARITA, FONTI, RIDUZIONE_MAX, SMAZZATE_AMMESSE } from './regolamento.js?v=9';
-import { creaStore } from './store.js?v=9';
-import { OMINO, MARCHIO, ICONE, GOOGLE, SEMI } from './grafica.js?v=9';
+import * as E from './engine.js?v=10';
+import { TEMPI, SISTEMI, TABELLE_VP, RIPOSO, CRITERI_PARITA, FONTI, RIDUZIONE_MAX, SMAZZATE_AMMESSE } from './regolamento.js?v=10';
+import { creaStore } from './store.js?v=10';
+import { OMINO, MARCHIO, ICONE, GOOGLE, SEMI } from './grafica.js?v=10';
 
 // ================= Stato =================
 const S = {
@@ -377,7 +377,7 @@ function setupTorneo() {
   const sugg = E.sistemaSuggerito(n, c.turni);
   const durata = E.durataPrevista(c, c.turni);
   const crono = E.cronoprogramma(c, c.turni);
-  const errTurni = n >= 3 && c.turni > max;
+  const errTurni = n >= 2 && c.turni > max;
   return `
     ${card({ testa: 'Il torneo', testaCls: 'blu', corpo: `
       <div class="campo"><label for="cfg-nome">Nome del torneo</label><input id="cfg-nome" class="input" maxlength="80" value="${esc(S.meta.name)}"></div>
@@ -392,7 +392,7 @@ function setupTorneo() {
       <p class="muto testo-s">Il regolamento permette di ridurre il tempo fino a 2 minuti, avvisando all'inizio del torneo.</p>` })}
     ${card({ testa: 'Numero di turni', corpo: `
       <div class="stepper"><button data-azione="turni" data-d="-1" aria-label="Meno turni">-</button><output class="num">${c.turni}</output><button data-azione="turni" data-d="1" aria-label="Più turni">+</button></div>
-      <p class="muto testo-s">${n >= 3 ? `Con ${n} coppie e il sistema scelto: massimo ${max >= 20 ? 'senza limite pratico' : `${max} turni`}.` : 'Il massimo dipende dal numero di coppie, che si conosce dopo le presenze.'}</p>
+      <p class="muto testo-s">${n === 2 ? 'Con 2 coppie è una sfida: si gioca sempre allo stesso tavolo, scegli quanti turni (fino a 20). Il sistema di abbinamento non cambia nulla.' : n >= 3 ? `Con ${n} coppie e il sistema scelto: massimo ${max >= 20 ? 'senza limite pratico' : `${max} turni`}.` : 'Il massimo dipende dal numero di coppie, che si conosce dopo le presenze.'}</p>
       ${errTurni ? avviso('Troppi turni', `Con ${n} coppie e il sistema ${SISTEMI[c.sistema].nome} si arriva al massimo a ${max} turni.`) : ''}` })}
     ${card({ testa: 'Sistema di abbinamento', corpo: Object.entries(SISTEMI).map(([k, s]) => {
       const mk = E.maxTurni(k, n);
@@ -426,8 +426,8 @@ function setupGiocatori() {
         <button class="icona-btn nudo" data-azione="apri-rinomina" data-pid="${id}" aria-label="Rinomina ${esc(p.name)}">${ICONE.matita}</button>
         ${bloccate ? '' : `<button class="icona-btn nudo" data-azione="rimuovi-giocatore" data-id="${id}" aria-label="Rimuovi ${esc(p.name)}">${ICONE.cestino}</button>`}
       </div>`).join('')}</div>` : card({ cls: 'crema', corpo: '<p>Aggiungi gli iscritti. Il giorno del torneo tocca "Presente" o "Assente" per ognuno.</p>' })}
-    <button class="btn primario blocco-w" data-azione="setup-tab" data-tab="coppie" ${pres < 6 || pres % 2 ? 'disabled' : ''}>Forma le coppie ${ICONE.freccia}</button>
-    ${pres < 6 ? '<p class="muto testo-s">Servono almeno 6 giocatori presenti (3 coppie).</p>' : ''}`;
+    <button class="btn primario blocco-w" data-azione="setup-tab" data-tab="coppie" ${pres < 4 || pres % 2 ? 'disabled' : ''}>Forma le coppie ${ICONE.freccia}</button>
+    ${pres < 4 ? '<p class="muto testo-s">Servono almeno 4 giocatori presenti (2 coppie).</p>' : ''}`;
 }
 
 function elencoCoppie() {
@@ -475,7 +475,7 @@ function setupCoppie() {
     ${draft.length && modo !== 'manuale' ? `<button class="btn blocco-w" data-azione="ri-estrai">${ICONE.azzera} Estrai di nuovo</button>` : ''}
     ${pres.length % 2 ? avviso('Giocatori dispari', 'Sistema le presenze prima di confermare.') : ''}
     ${erroreCoppie ? avviso('Coppie da correggere', `${esc(erroreCoppie)} Sciogli le coppie sbagliate oppure usa "Estrai di nuovo".`) : ''}
-    <button class="btn primario blocco-w" data-azione="conferma-coppie" ${liberi.length || draft.length < 3 || erroreCoppie ? 'disabled' : ''}>Conferma coppie ${ICONE.freccia}</button>
+    <button class="btn primario blocco-w" data-azione="conferma-coppie" ${liberi.length || draft.length < 2 || erroreCoppie ? 'disabled' : ''}>Conferma coppie ${ICONE.freccia}</button>
     <p class="muto testo-s">Dopo la conferma le coppie restano fisse per tutto il torneo.</p>`;
 }
 
@@ -563,7 +563,7 @@ function vistaFinale() {
   return `<section class="hero"><div class="arte"><div class="diag"></div><div class="rossa"></div>${OMINO}</div>
       <div class="testo"><span class="badge rosso" style="align-self:flex-start">Classifica finale</span><h2 class="titolo-m">Torneo<br><span class="rosso-t">concluso</span></h2></div>
       <div class="piede"><span>${SEME.cuori}Cuori</span><span>${SEME.quadri}Quadri</span></div><div class="angolo"></div></section>
-    <div class="podio">${g(podio[0], 'g2', '2°')}${g(podio[1], 'g1', '1°')}${g(podio[2], 'g3', '3°')}</div>
+    <div class="podio${podio[2] ? "" : " due"}">${g(podio[0], 'g2', '2°')}${g(podio[1], 'g1', '1°')}${g(podio[2], 'g3', '3°')}</div>
     ${tabellaClassifica(cl)}
     <div class="griglia-2"><button class="btn giallo" data-azione="condividi-classifica">${ICONE.condividi} Condividi</button>
       <button class="btn" data-azione="esporta">${ICONE.scarica} Esporta</button></div>`;
