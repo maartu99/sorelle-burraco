@@ -1,7 +1,7 @@
-import * as E from './engine.js?v=5';
-import { TEMPI, SISTEMI, TABELLE_VP, RIPOSO, CRITERI_PARITA, FONTI, RIDUZIONE_MAX, SMAZZATE_AMMESSE } from './regolamento.js?v=5';
-import { creaStore } from './store.js?v=5';
-import { OMINO, MARCHIO, ICONE, GOOGLE, SEMI } from './grafica.js?v=5';
+import * as E from './engine.js?v=6';
+import { TEMPI, SISTEMI, TABELLE_VP, RIPOSO, CRITERI_PARITA, FONTI, RIDUZIONE_MAX, SMAZZATE_AMMESSE } from './regolamento.js?v=6';
+import { creaStore } from './store.js?v=6';
+import { OMINO, MARCHIO, ICONE, GOOGLE, SEMI } from './grafica.js?v=6';
 
 // ================= Stato =================
 const S = {
@@ -67,6 +67,23 @@ function nomiCoppia(id) {
   const p = t.pairs[id];
   if (!p) return '';
   return `${esc(t.players[p.p1]?.name || '?')} e ${esc(t.players[p.p2]?.name || '?')}`;
+}
+
+// Nome mostrato della coppia: il soprannome, se c'è, altrimenti i due nomi.
+function nomeCoppia(id) {
+  const p = S.data.pairs[id];
+  return p && p.nick ? esc(p.nick) : nomiCoppia(id);
+}
+// I due nomi sotto, solo quando la coppia ha un soprannome.
+function sottoNomi(id, tag = 'small') {
+  const p = S.data.pairs[id];
+  return p && p.nick ? `<${tag} class="muto testo-s">${nomiCoppia(id)}</${tag}>` : '';
+}
+function testoCoppia(id) {
+  const t = S.data; const p = t.pairs[id];
+  if (!p) return '';
+  const n = `${t.players[p.p1]?.name || '?'} e ${t.players[p.p2]?.name || '?'}`;
+  return p.nick ? `${p.nick} (${n})` : n;
 }
 
 function miaCoppia() {
@@ -392,6 +409,7 @@ function setupGiocatori() {
       <div class="voce ${p.present ? '' : 'spento'}"><span class="n num">${String(i + 1).padStart(2, '0')}</span>
         <span class="cresce nome-p">${esc(p.name)}</span>
         <button class="stato-btn" role="switch" aria-checked="${!!p.present}" data-azione="presenza" data-id="${id}" ${bloccate ? 'disabled' : ''}>${p.present ? 'Presente' : 'Assente'}</button>
+        <button class="icona-btn nudo" data-azione="apri-rinomina" data-pid="${id}" aria-label="Rinomina ${esc(p.name)}">${ICONE.matita}</button>
         ${bloccate ? '' : `<button class="icona-btn nudo" data-azione="rimuovi-giocatore" data-id="${id}" aria-label="Rimuovi ${esc(p.name)}">${ICONE.cestino}</button>`}
       </div>`).join('')}</div>` : card({ cls: 'crema', corpo: '<p>Aggiungi gli iscritti. Il giorno del torneo tocca "Presente" o "Assente" per ognuno.</p>' })}
     <button class="btn primario blocco-w" data-azione="setup-tab" data-tab="coppie" ${pres < 6 || pres % 2 ? 'disabled' : ''}>Forma le coppie ${ICONE.freccia}</button>
@@ -400,9 +418,9 @@ function setupGiocatori() {
 
 function elencoCoppie() {
   const mia = miaCoppia();
-  return `<div class="elenco">${S.data.order.slice().sort().map((id) => `
-    <div class="voce ${S.data.pairs[id].ritiroDalTurno ? 'spento' : ''} ${mia === id ? 'mia' : ''}"><span class="n giallo">${id}</span>
-      <span class="cresce"><span class="etichetta">Coppia ${id}</span><br>${nomiCoppia(id)}</span>
+  return `<div class="elenco">${S.data.order.slice().sort().map((id, i) => `
+    <div class="voce ${S.data.pairs[id].ritiroDalTurno ? 'spento' : ''} ${mia === id ? 'mia' : ''}"><span class="n giallo num">${String(i + 1).padStart(2, '0')}</span>
+      <span class="cresce"><span class="nome-p">${nomeCoppia(id)}</span>${sottoNomi(id, 'div')}</span>
       ${S.data.pairs[id].ritiroDalTurno ? '<span class="badge chiaro">Ritirata</span>' : mia === id ? '<span class="badge giallo">La tua</span>' : ''}</div>`).join('')}</div>`;
 }
 
@@ -481,13 +499,13 @@ function vistaTurno() {
     const miaQui = mia && (tb.a === mia || tb.b === mia);
     return `<section class="card ${miaQui ? 'mia' : ''}"><div class="testa ${c ? 'verde' : 'gialla'}"><span class="riga"><span class="numtav num">${String(k).padStart(2, '0')}</span><span class="etichetta">Tavolo${miaQui ? ' - il tuo' : ''}</span></span>
         <span class="badge ${c ? 'blu' : 'giallo'}">${c ? 'Risultato inserito' : 'In attesa'}</span></div>
-      <div class="corpo"><div class="vs-riga"><div><div class="chi"><span class="nw">Coppia ${tb.a}</span> <span class="nw"><span class="vs">VS</span>Coppia ${tb.b}</span></div>
-        <div class="nomi">${nomiCoppia(tb.a)}<br>${nomiCoppia(tb.b)}</div>${c ? `<div class="nomi num">Punti ${fmtN(res.a)} - ${fmtN(res.b)}</div>` : ''}</div>
+      <div class="corpo"><div class="vs-riga"><div><div class="chi">${nomeCoppia(tb.a)}${sottoNomi(tb.a, 'div')}<span class="vs">VS</span>${nomeCoppia(tb.b)}${sottoNomi(tb.b, 'div')}</div>
+        ${c ? `<div class="nomi num">Punti ${fmtN(res.a)} - ${fmtN(res.b)}</div>` : ''}</div>
         <div class="vp-box"><div class="val num">${c ? `${c.vpA} - ${c.vpB}` : '-'}</div><div class="etichetta">V.P.</div></div></div>
         ${adm ? `<button class="btn ${c ? '' : 'giallo'} piccolo blocco-w" data-azione="apri-risultato" data-tav="${k}">${c ? `${ICONE.matita} Correggi risultato` : `${ICONE.piu} Inserisci risultato`}</button>` : ''}</div></section>`;
   }).join('');
   const riposi = Object.entries(r.byes).map(([id, motivo]) => card({ testa: 'A riposo', testaCls: 'blu', cls: mia === id ? 'mia' : '', corpo: `
-    <div class="riga"><span class="mini-omino" style="width:52px;height:52px;background:var(--giallo)">${ICONE.luna}</span><div class="colonna"><strong>Coppia ${id}</strong><span class="testo-s">${nomiCoppia(id)}</span>
+    <div class="riga"><span class="mini-omino" style="width:52px;height:52px;background:var(--giallo)">${ICONE.luna}</span><div class="colonna"><strong>${nomeCoppia(id)}</strong>${sottoNomi(id, 'span')}
     <span class="testo-s muto">${motivo === 'ritiro' ? 'L\'avversaria si è ritirata. ' : ''}Riceve ${RIPOSO[sm].vp} V.P. e ${RIPOSO[sm].mp} M.P.</span></div></div>` })).join('');
   return `${pannello}${comandi}
     ${(r.avvisi || []).length && adm ? avviso('Nota', r.avvisi.map(esc).join(' '), 'info') : ''}
@@ -503,7 +521,7 @@ function tabellaClassifica(cl) {
   return `<table class="classifica num"><thead><tr><th style="text-align:center">#</th><th>Coppia</th><th>V.P.</th><th>M.P.</th><th>G</th></tr></thead><tbody>
     ${cl.map((r) => `<tr class="${r.pos === 1 ? 'primo' : ''} ${mia === r.id ? 'mia' : ''}">
       <td class="pos">${r.pos}</td>
-      <td><strong>Coppia ${r.id}</strong>${r.ritirata ? ' <span class="badge chiaro">Ritirata</span>' : ''}<small>${nomiCoppia(r.id)}</small>${r.decisoDa ? `<small>Parità: ${r.decisoDa}</small>` : ''}</td>
+      <td><strong>${nomeCoppia(r.id)}</strong>${r.ritirata ? ' <span class="badge chiaro">Ritirata</span>' : ''}${sottoNomi(r.id)}${r.decisoDa ? `<small>Parità: ${r.decisoDa}</small>` : ''}</td>
       <td class="vp">${r.vp}</td><td>${fmt(r.mp)}</td><td>${r.giocate}${r.riposi ? `<small>+${r.riposi}R</small>` : ''}</td></tr>`).join('')}
   </tbody></table>`;
 }
@@ -516,7 +534,7 @@ function vistaClassifica() {
   const cl = E.classifica(t);
   const mia = miaCoppia();
   const io = mia ? cl.find((r) => r.id === mia) : null;
-  return `${io ? card({ testa: 'La tua coppia', testaCls: 'gialla', corpo: `<div class="riga spazio"><div class="colonna"><span class="titolo-m">${io.pos}° posto</span><span class="testo-s">${nomiCoppia(io.id)}</span></div>
+  return `${io ? card({ testa: 'La tua coppia', testaCls: 'gialla', corpo: `<div class="riga spazio"><div class="colonna"><span class="titolo-m">${io.pos}° posto</span><span class="testo-s">${nomeCoppia(io.id)}</span></div>
       <div class="vp-box"><div class="val num">${io.vp}</div><div class="etichetta">V.P.</div></div></div>` }) : ''}
     <div class="sezione"><h2>Classifica</h2><span class="badge ${t.status === 'finished' ? 'giallo' : 'chiaro'}">${t.status === 'finished' ? 'Finale' : `Dopo il turno ${ult}`}</span></div>
     ${tabellaClassifica(cl)}
@@ -527,7 +545,7 @@ function vistaClassifica() {
 function vistaFinale() {
   const cl = E.classifica(S.data);
   const podio = [cl[1], cl[0], cl[2]];
-  const g = (r, cls, posto) => (r ? `<div class="gradino ${cls}"><span class="posto">${posto}</span><strong>Coppia ${r.id}</strong><span class="chi">${nomiCoppia(r.id)}</span><span class="num"><strong>${r.vp}</strong> V.P.</span></div>` : '<div></div>');
+  const g = (r, cls, posto) => (r ? `<div class="gradino ${cls}"><span class="posto">${posto}</span><strong class="chi">${nomeCoppia(r.id)}</strong>${sottoNomi(r.id, 'span')}<span class="num"><strong>${r.vp}</strong> V.P.</span></div>` : '<div></div>');
   return `<section class="hero"><div class="arte"><div class="diag"></div><div class="rossa"></div>${OMINO}</div>
       <div class="testo"><span class="badge rosso" style="align-self:flex-start">Classifica finale</span><h2 class="titolo-m">Torneo<br><span class="rosso-t">concluso</span></h2></div>
       <div class="piede"><span>${SEME.cuori}Cuori</span><span>${SEME.quadri}Quadri</span></div><div class="angolo"></div></section>
@@ -553,12 +571,13 @@ function vistaStorico() {
     ${Object.entries(r.tables).sort((a, b) => a[0] - b[0]).map(([k, tb]) => {
       const res = r.results[k];
       const c = res ? E.calcolaPartita(res.a, res.b, sm) : null;
-      return `<div class="vs-riga" style="border-top:2px solid var(--crema-2);padding-top:12px"><div><div class="chi"><span class="nw">Coppia ${tb.a}</span> <span class="nw"><span class="vs">VS</span>Coppia ${tb.b}</span></div>
+      return `<div class="vs-riga" style="border-top:2px solid var(--crema-2);padding-top:12px"><div><div class="chi">${nomeCoppia(tb.a)}<span class="vs">VS</span>${nomeCoppia(tb.b)}</div>
         <div class="nomi num">Tavolo ${k}${c ? ` - punti ${fmtN(res.a)} - ${fmtN(res.b)} - M.P. ${fmt(c.mpA)}` : ''}${res && res.by ? `<br>Inserito da ${nomeMembro(res.by)}` : ''}</div></div>
         <div class="vp-box"><div class="val num">${c ? `${c.vpA} - ${c.vpB}` : '-'}</div><div class="etichetta">V.P.</div></div></div>`;
     }).join('')}
-    ${Object.entries(r.byes).map(([id, m]) => `<p class="testo-s"><span class="badge blu">Riposo</span> Coppia ${id} (${m === 'ritiro' ? 'avversaria ritirata' : 'coppie dispari'}): ${RIPOSO[sm].vp} V.P. e ${RIPOSO[sm].mp} M.P.</p>`).join('')}
-    ${Object.values(t.pairs).filter((p) => p.ritiroDalTurno === r.n).map((p) => `<p class="testo-s"><span class="badge rosso">Ritiro</span> Coppia ${p.id} non gioca dal turno ${r.n}.</p>`).join('')}` })).join('')
+    ${Object.entries(r.byes).map(([id, m]) => `<p class="testo-s"><span class="badge blu">Riposo</span> ${nomeCoppia(id)} (${m === 'ritiro' ? 'avversaria ritirata' : 'coppie dispari'}): ${RIPOSO[sm].vp} V.P. e ${RIPOSO[sm].mp} M.P.</p>`).join('')}
+    ${Object.values(t.pairs).filter((p) => p.ritiroDalTurno === r.n).map((p) => `<p class="testo-s"><span class="badge rosso">Ritiro</span> ${nomeCoppia(p.id)} non gioca dal turno ${r.n}.</p>`).join('')}
+    ${Object.values(t.pairs).flatMap((p) => Object.values(p.sostituzioni || {}).filter((x) => x.turno === r.n).map((x) => `<p class="testo-s"><span class="badge giallo">Sostituzione</span> ${esc(x.esceNome)} lascia il posto a ${esc(x.entraNome)} (${nomeCoppia(p.id)}).</p>`)).join('')}` })).join('')
     : card({ cls: 'crema', corpo: '<p>Le partite compaiono qui dopo l\'avvio del torneo.</p>' }));
 }
 
@@ -604,10 +623,20 @@ function vistaAltro() {
     <div class="elenco">${membri.map(([uid, m], i) => `<div class="voce"><span class="n ${m.role === 'admin' ? '' : 'giallo'} num">${String(i + 1).padStart(2, '0')}</span>
       <span class="cresce"><span class="nome">${esc(m.name)}${uid === S.user.uid ? ' (tu)' : ''}</span><br><span class="etichetta ${m.role === 'admin' ? 'blu-t' : 'muto'}">${m.role === 'admin' ? 'Admin' : 'Partecipante'}</span></span>
       ${adm ? `<button class="btn piccolo" data-azione="ruolo" data-uid="${uid}">${m.role === 'admin' ? 'Togli admin' : 'Rendi admin'}</button>` : ''}</div>`).join('')}</div>
-    ${adm && t.status === 'running' ? card({ testa: 'Ritiro di una coppia', testaCls: 'gialla', corpo: `
-      <p class="testo-s">I risultati già giocati restano validi; nei turni successivi chi doveva incontrarla riceve il punteggio di riposo.</p>
-      <select class="input" id="ritiro-coppia"><option value="">Scegli la coppia</option>${attive.map((id) => `<option value="${id}">Coppia ${id} - ${nomiCoppia(id)}</option>`).join('')}</select>
-      <button class="btn blocco-w" data-azione="apri-ritiro">Segna il ritiro</button>` }) : ''}
+    ${adm && t.order.length ? `<div class="sezione"><h2>Coppie e giocatori</h2><span class="badge chiaro">${t.order.length} coppie</span></div>
+    <div class="elenco">${t.order.slice().sort((a, b) => testoCoppia(a).localeCompare(testoCoppia(b), 'it')).map((id) => {
+      const p = t.pairs[id];
+      const rit = !!p.ritiroDalTurno;
+      const attiva = t.status === 'running' && !rit;
+      return `<section class="card"><div class="testa ${rit ? '' : 'gialla'}"><span class="etichetta">${nomeCoppia(id)}</span>${rit ? '<span class="badge chiaro">Ritirata</span>' : ''}</div><div class="corpo">
+        ${[p.p1, p.p2].map((pid) => `<div class="colonna" style="gap:8px"><span class="nome-p">${esc(t.players[pid]?.name || '?')}</span>
+          <div class="griglia-2"><button class="btn piccolo" data-azione="apri-rinomina" data-pid="${pid}">${ICONE.matita} Rinomina</button>
+          ${attiva ? `<button class="btn piccolo giallo" data-azione="apri-sostituisci" data-id="${id}" data-pid="${pid}">${ICONE.utenti} Sostituisci</button>` : '<span></span>'}</div></div>`).join('')}
+        <div class="griglia-2"><button class="btn piccolo" data-azione="apri-soprannome" data-id="${id}">${p.nick ? 'Soprannome' : 'Dai un soprannome'}</button>
+        ${attiva ? `<button class="btn piccolo primario" data-azione="apri-ritiro" data-id="${id}">Ritira la coppia</button>` : '<span></span>'}</div>
+      </div></section>`;
+    }).join('')}</div>
+    <p class="muto testo-s">Sostituzione: secondo il codice di gara è ammessa una sola volta per coppia, ed è consentito solo il ritorno del giocatore titolare. Ritiro: i risultati giocati restano validi, chi doveva incontrare la coppia riceve il riposo.</p>` : ''}
     ${card({ testa: 'Dati', corpo: `
       <button class="btn blocco-w" data-azione="esporta">${ICONE.scarica} Esporta il torneo (JSON)</button>
       ${adm ? `<button class="btn primario blocco-w" data-azione="apri-elimina">${ICONE.cestino} Elimina il torneo</button>` : `<button class="btn blocco-w" data-azione="lascia">Togli dai miei tornei</button>`}` })}`;
@@ -655,14 +684,39 @@ function renderFoglio() {
     const sm = S.data.config.smazzate;
     c = `<h2 class="titolo">Tavolo ${f.tav} - Turno ${f.turno}</h2>
       <div class="griglia-2">
-        <div class="campo"><label for="ris-a">Coppia ${tb.a}</label><input id="ris-a" class="input grande num" inputmode="numeric" pattern="-?[0-9]*" value="${res ? res.a : ''}" placeholder="0"><span class="muto testo-s">${nomiCoppia(tb.a)}</span></div>
-        <div class="campo"><label for="ris-b">Coppia ${tb.b}</label><input id="ris-b" class="input grande num" inputmode="numeric" pattern="-?[0-9]*" value="${res ? res.b : ''}" placeholder="0"><span class="muto testo-s">${nomiCoppia(tb.b)}</span></div>
+        <div class="campo"><label for="ris-a">${nomeCoppia(tb.a)}</label><input id="ris-a" class="input grande num" inputmode="numeric" pattern="-?[0-9]*" value="${res ? res.a : ''}" placeholder="0"></div>
+        <div class="campo"><label for="ris-b">${nomeCoppia(tb.b)}</label><input id="ris-b" class="input grande num" inputmode="numeric" pattern="-?[0-9]*" value="${res ? res.b : ''}" placeholder="0"></div>
       </div>
       <button class="link" data-azione="dettaglio-smazzate">${f.dettaglio ? 'Nascondi il dettaglio' : 'Inserisci smazzata per smazzata'}</button>
-      ${f.dettaglio ? `<div class="colonna" style="gap:8px">${Array.from({ length: sm }, (_, i) => `<div class="griglia-2"><input class="input num smz" data-lato="a" inputmode="numeric" placeholder="Smazzata ${i + 1}" aria-label="Coppia ${tb.a}, smazzata ${i + 1}"><input class="input num smz" data-lato="b" inputmode="numeric" placeholder="Smazzata ${i + 1}" aria-label="Coppia ${tb.b}, smazzata ${i + 1}"></div>`).join('')}</div>` : ''}
+      ${f.dettaglio ? `<div class="colonna" style="gap:8px">${Array.from({ length: sm }, (_, i) => `<div class="griglia-2"><input class="input num smz" data-lato="a" inputmode="numeric" placeholder="Smazzata ${i + 1}" aria-label="${esc(testoCoppia(tb.a))}, smazzata ${i + 1}"><input class="input num smz" data-lato="b" inputmode="numeric" placeholder="Smazzata ${i + 1}" aria-label="${esc(testoCoppia(tb.b))}, smazzata ${i + 1}"></div>`).join('')}</div>` : ''}
       <p class="muto testo-s">Punti totali del turno, anche negativi. Il Burraco usa multipli di 5.</p>
       <div class="card gialla"><div class="corpo" id="anteprima"></div></div>
       <div class="griglia-2"><button class="btn" data-azione="chiudi-foglio">Annulla</button><button class="btn primario" data-azione="salva-risultato">Salva</button></div>`;
+  } else if (f.tipo === 'rinomina') {
+    const pl = S.data.players[f.pid];
+    c = `<h2 class="titolo-m">Rinomina giocatore</h2>
+      <div class="campo"><label for="rin-nome">Nome e cognome</label><input id="rin-nome" class="input" maxlength="40" value="${esc(pl?.name || '')}" autocomplete="off"></div>
+      <p class="muto testo-s">Cambia solo il nome: coppie, risultati e classifica restano uguali.</p>
+      <div class="griglia-2"><button class="btn" data-azione="chiudi-foglio">Annulla</button><button class="btn primario" data-azione="salva-rinomina">Salva</button></div>`;
+  } else if (f.tipo === 'soprannome') {
+    const pr = S.data.pairs[f.id];
+    c = `<h2 class="titolo-m">Soprannome della coppia</h2><p>${nomiCoppia(f.id)}</p>
+      <div class="campo"><label for="nick">Soprannome (facoltativo)</label><input id="nick" class="input" maxlength="30" value="${esc(pr?.nick || '')}" placeholder="Es. Le Pinelle" autocomplete="off"></div>
+      <p class="muto testo-s">Se lo lasci vuoto, la coppia viene mostrata con i due nomi.</p>
+      <div class="griglia-2"><button class="btn" data-azione="chiudi-foglio">Annulla</button><button class="btn primario" data-azione="salva-soprannome">Salva</button></div>`;
+  } else if (f.tipo === 'sostituisci') {
+    const t = S.data; const pr = t.pairs[f.id];
+    const occupati = new Set(E.coppieAttive(t, E.turnoCorrente(t)).flatMap((id) => [t.pairs[id].p1, t.pairs[id].p2]));
+    const riserve = Object.entries(t.players).filter(([pid]) => !occupati.has(pid)).sort((a, b) => a[1].name.localeCompare(b[1].name, 'it'));
+    const gia = Object.keys(pr.sostituzioni || {}).length;
+    c = `<h2 class="titolo-m">Sostituzione</h2>
+      <p>Esce <strong>${esc(t.players[f.pid]?.name)}</strong> da ${nomeCoppia(f.id)}. La coppia tiene tutti i suoi punti.</p>
+      ${gia ? avviso('Attenzione', 'Questa coppia ha già fatto una sostituzione: il regolamento consente solo il ritorno del giocatore titolare.', 'info') : ''}
+      ${riserve.length ? `<div class="campo"><label for="sost-riserva">Entra un giocatore già in elenco</label><select id="sost-riserva" class="input"><option value="">Nessuno</option>
+        ${riserve.map(([pid, p]) => `<option value="${pid}">${esc(p.name)}${pr.titolari && Object.values(pr.titolari).includes(pid) ? ' (titolare)' : ''}</option>`).join('')}</select></div>
+      <div class="separatore"><i></i><span class="etichetta">oppure</span><i class="g"></i></div>` : ''}
+      <div class="campo"><label for="sost-nuovo">Entra una riserva nuova</label><input id="sost-nuovo" class="input" maxlength="40" placeholder="Nome e cognome" autocomplete="off"></div>
+      <div class="griglia-2"><button class="btn" data-azione="chiudi-foglio">Annulla</button><button class="btn primario" data-azione="salva-sostituzione">Conferma</button></div>`;
   } else if (f.tipo === 'conferma') {
     c = `<h2 class="titolo">${esc(f.titolo)}</h2><p>${esc(f.testo)}</p>
       ${f.digitare ? `<div class="campo"><label for="conferma-testo">Scrivi ${esc(f.digitare)} per confermare</label><input id="conferma-testo" class="input" autocomplete="off"></div>` : ''}
@@ -694,9 +748,9 @@ function aggiornaAnteprima() {
   const multipli = a % 5 === 0 && b % 5 === 0;
   el.innerHTML = `<p class="etichetta" style="color:var(--ink)">Anteprima</p>
     <p class="num">Differenza: <strong>${fmtN(Math.abs(c.mpA))} M.P.</strong></p>
-    <div class="anteprima-vp num"><div class="lato"><span class="etichetta" style="color:var(--ink)">Coppia ${tb.a}</span><span class="grande">${c.vpA}</span></div>
+    <div class="anteprima-vp num"><div class="lato"><span class="etichetta" style="color:var(--ink)">${nomeCoppia(tb.a)}</span><span class="grande">${c.vpA}</span></div>
       <span class="etichetta" style="color:var(--ink)">V.P.</span>
-      <div class="lato"><span class="etichetta" style="color:var(--ink)">Coppia ${tb.b}</span><span class="grande">${c.vpB}</span></div></div>
+      <div class="lato"><span class="etichetta" style="color:var(--ink)">${nomeCoppia(tb.b)}</span><span class="grande">${c.vpB}</span></div></div>
     ${multipli ? '' : '<p><strong>Attenzione:</strong> i punti non sono multipli di 5. Controlla.</p>'}`;
 }
 
@@ -925,10 +979,10 @@ const azioni = {
       ok: 'Chiudi', azione: 'chiudi-turno',
     });
   },
-  'apri-ritiro'() {
-    const id = val('ritiro-coppia');
+  'apri-ritiro'(el) {
+    const id = (el && el.dataset.id) || val('ritiro-coppia');
     if (!id) return toast('Scegli la coppia.');
-    apriFoglio('conferma', { titolo: `Ritiro della coppia ${id}`, testo: `${S.data.players[S.data.pairs[id].p1]?.name} e ${S.data.players[S.data.pairs[id].p2]?.name} non giocheranno più. L'operazione non si può annullare.`, ok: 'Conferma il ritiro', azione: 'ritiro', id });
+    apriFoglio('conferma', { titolo: `Ritiro di ${testoCoppia(id)}`, testo: `${S.data.players[S.data.pairs[id].p1]?.name} e ${S.data.players[S.data.pairs[id].p2]?.name} non giocheranno più. L'operazione non si può annullare.`, ok: 'Conferma il ritiro', azione: 'ritiro', id });
   },
   'apri-elimina'() {
     apriFoglio('conferma', { titolo: 'Eliminare il torneo?', testo: 'Il torneo verrà cancellato per tutti i partecipanti. Non si può annullare. Se vuoi conservarlo, esportalo prima.', ok: 'Elimina', azione: 'elimina', digitare: 'ELIMINA' });
@@ -974,7 +1028,7 @@ const azioni = {
   },
   async 'condividi-classifica'() {
     const cl = E.classifica(S.data);
-    const testo = `${S.meta.name} - classifica finale\n` + cl.map((r) => `${r.pos}. Coppia ${r.id} (${S.data.players[S.data.pairs[r.id].p1]?.name} e ${S.data.players[S.data.pairs[r.id].p2]?.name}) ${r.vp} V.P., ${fmt(r.mp)} M.P.`).join('\n');
+    const testo = `${S.meta.name} - classifica finale\n` + cl.map((r) => `${r.pos}. ${testoCoppia(r.id)} ${r.vp} V.P., ${fmt(r.mp)} M.P.`).join('\n');
     if (navigator.share) { try { await navigator.share({ title: S.meta.name, text: testo }); } catch (e) { /* annullato */ } }
     else { try { await navigator.clipboard.writeText(testo); toast('Classifica copiata.'); } catch (e) { toast('Impossibile condividere da questo browser.'); } }
   },
@@ -987,6 +1041,48 @@ const azioni = {
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   },
 
+  'apri-rinomina'(el) { apriFoglio('rinomina', { pid: el.dataset.pid }); },
+  'apri-soprannome'(el) { apriFoglio('soprannome', { id: el.dataset.id }); },
+  'apri-sostituisci'(el) { apriFoglio('sostituisci', { id: el.dataset.id, pid: el.dataset.pid }); },
+  'salva-rinomina'() {
+    const f = S.sheet; const nome = val('rin-nome');
+    if (!nome) return toast('Scrivi un nome.');
+    const doppio = Object.entries(S.data.players).some(([pid, p]) => pid !== f.pid && p.name.toLowerCase() === nome.toLowerCase());
+    if (doppio) return toast('C\'è già un giocatore con questo nome.');
+    chiudiFoglio();
+    salva({ ...S.data, players: { ...S.data.players, [f.pid]: { ...S.data.players[f.pid], name: nome } } });
+    toast('Nome aggiornato.');
+  },
+  'salva-soprannome'() {
+    const f = S.sheet; const nick = val('nick');
+    chiudiFoglio();
+    salva({ ...S.data, pairs: { ...S.data.pairs, [f.id]: { ...S.data.pairs[f.id], nick: nick || null } } });
+  },
+  'salva-sostituzione'() {
+    const f = S.sheet; const t = S.data; const pr = t.pairs[f.id];
+    const scelto = val('sost-riserva'); const nuovo = val('sost-nuovo');
+    if (!scelto && !nuovo) return toast('Scegli chi entra oppure scrivi il nome della riserva.');
+    if (scelto && nuovo) return toast('Scegli un giocatore oppure scrivi un nome nuovo, non tutti e due.');
+    const titolari = pr.titolari || { a: pr.p1, b: pr.p2 };
+    const gia = Object.keys(pr.sostituzioni || {}).length;
+    if (gia && !(scelto && Object.values(titolari).includes(scelto))) {
+      return toast('Il regolamento consente una sola sostituzione per coppia: ora può rientrare solo il giocatore titolare.');
+    }
+    const players = { ...t.players };
+    let entra = scelto;
+    if (nuovo) {
+      if (Object.values(players).some((p) => p.name.toLowerCase() === nuovo.toLowerCase())) return toast('C\'è già un giocatore con questo nome: sceglilo dall\'elenco.');
+      entra = nuovoId('g'); players[entra] = { name: nuovo, present: true };
+    } else players[entra] = { ...players[entra], present: true };
+    const lato = pr.p1 === f.pid ? 'p1' : 'p2';
+    const n = E.turnoCorrente(t);
+    const r = t.rounds[n];
+    const turno = r && !r.closed ? n : n + 1;
+    const sost = { ...(pr.sostituzioni || {}), [nuovoId('s')]: { turno, esce: f.pid, entra, esceNome: t.players[f.pid]?.name || '', entraNome: players[entra].name } };
+    chiudiFoglio();
+    salva({ ...t, players, pairs: { ...t.pairs, [f.id]: { ...pr, [lato]: entra, titolari, sostituzioni: sost } } });
+    toast(`${players[entra].name} entra al posto di ${t.players[f.pid]?.name}.`);
+  },
   'chiudi-foglio'() { chiudiFoglio(); },
   velo(el, ev) { if (ev.target === el) chiudiFoglio(); },
 };
@@ -1029,6 +1125,8 @@ document.addEventListener('keydown', (ev) => {
   if (ev.key === 'Enter' && ev.target.id === 'nuovo-giocatore') { ev.preventDefault(); azioni['aggiungi-giocatore'](); }
   if (ev.key === 'Enter' && ev.target.id === 'entra-codice') azioni.entra();
   if (ev.key === 'Enter' && ev.target.id === 'crea-nome') azioni.crea();
+  if (ev.key === 'Enter' && ev.target.id === 'rin-nome') azioni['salva-rinomina']();
+  if (ev.key === 'Enter' && ev.target.id === 'nick') azioni['salva-soprannome']();
   if (ev.key === 'Escape' && S.sheet) chiudiFoglio();
 });
 
