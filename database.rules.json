@@ -1,0 +1,38 @@
+{
+  "rules": {
+    "codes": {
+      "$code": {
+        ".read": "auth != null",
+        ".write": "auth != null && ((!data.exists() && newData.isString()) || (data.exists() && !newData.exists() && root.child('tournaments').child(data.val()).child('members').child(auth.uid).child('role').val() === 'admin'))"
+      }
+    },
+    "userTournaments": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+        "$tid": { ".validate": "newData.isBoolean()" }
+      }
+    },
+    "tournaments": {
+      "$tid": {
+        ".read": "auth != null && data.child('members').child(auth.uid).exists()",
+        "meta": {
+          ".write": "auth != null && ((!data.exists() && newData.child('owner').val() === auth.uid) || root.child('tournaments').child($tid).child('members').child(auth.uid).child('role').val() === 'admin')",
+          "name": { ".validate": "newData.isString() && newData.val().length <= 80" }
+        },
+        "members": {
+          "$uid": {
+            ".write": "auth != null && (root.child('tournaments').child($tid).child('members').child(auth.uid).child('role').val() === 'admin' || (auth.uid === $uid && !data.exists() && newData.child('role').val() === 'viewer') || (auth.uid === $uid && !data.exists() && newData.child('role').val() === 'admin' && root.child('tournaments').child($tid).child('meta').child('owner').val() === auth.uid) || (auth.uid === $uid && data.exists() && newData.exists() && newData.child('role').val() === data.child('role').val()))",
+            "role": { ".validate": "newData.val() === 'admin' || newData.val() === 'viewer'" },
+            "name": { ".validate": "newData.isString() && newData.val().length <= 60" },
+            "player": { ".validate": "newData.isString() && newData.val().length <= 40" },
+            "$other": { ".validate": false }
+          }
+        },
+        "data": {
+          ".write": "auth != null && root.child('tournaments').child($tid).child('members').child(auth.uid).child('role').val() === 'admin'"
+        }
+      }
+    }
+  }
+}
