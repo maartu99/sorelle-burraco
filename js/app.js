@@ -1,7 +1,7 @@
-import * as E from './engine.js?v=4';
-import { TEMPI, SISTEMI, TABELLE_VP, RIPOSO, CRITERI_PARITA, FONTI, RIDUZIONE_MAX, SMAZZATE_AMMESSE } from './regolamento.js?v=4';
-import { creaStore } from './store.js?v=4';
-import { OMINO, MARCHIO, ICONE, GOOGLE, SEMI } from './grafica.js?v=4';
+import * as E from './engine.js?v=5';
+import { TEMPI, SISTEMI, TABELLE_VP, RIPOSO, CRITERI_PARITA, FONTI, RIDUZIONE_MAX, SMAZZATE_AMMESSE } from './regolamento.js?v=5';
+import { creaStore } from './store.js?v=5';
+import { OMINO, MARCHIO, ICONE, GOOGLE, SEMI } from './grafica.js?v=5';
 
 // ================= Stato =================
 const S = {
@@ -139,6 +139,7 @@ function render() {
   }
   if (scrollBloccato === null) window.scrollTo(0, scrollY);
   aggiornaTimer();
+  aggiornaDurata();
 }
 
 // ================= Pezzi grafici comuni =================
@@ -326,6 +327,18 @@ function vistaSetup() {
   return `<div class="segmenti">${passi.map(([k, l], i) => `<button class="${S.setupTab === k ? 'attivo' : ''}" data-azione="setup-tab" data-tab="${k}">${i + 1}. ${l}</button>`).join('')}</div>${c}`;
 }
 
+// Aggiorna subito inizio e fine previsti mentre si cambia l'ora, prima del salvataggio.
+function aggiornaDurata() {
+  const ora = document.getElementById('cfg-ora');
+  const fine = document.getElementById('dur-fine');
+  const ini = document.getElementById('dur-inizio');
+  if (!ora || !fine || !ini || !S.data) return;
+  const inizio = /^\d{1,2}:\d{2}/.test(ora.value) ? ora.value.slice(0, 5) : S.data.config.inizio;
+  const c = { ...S.data.config, inizio };
+  fine.textContent = `Fine ${E.formatOra(E.cronoprogramma(c, c.turni).fine)}`;
+  ini.textContent = inizio;
+}
+
 function setupTorneo() {
   const c = S.data.config;
   const n = nCoppiePreviste();
@@ -358,9 +371,9 @@ function setupTorneo() {
         <span class="testo-s">${s.descrizione}${n >= 3 && !ok ? ` Con ${n} coppie: massimo ${mk} turni.` : ''}</span></span></button>`;
     }).join('') })}
     ${card({ cls: 'gialla', corpo: `
-      <div class="riga spazio"><span class="etichetta">Durata prevista</span><span class="badge nero">Fine ${E.formatOra(crono.fine)}</span></div>
+      <div class="riga spazio"><span class="etichetta">Durata prevista</span><span class="badge nero" id="dur-fine">Fine ${E.formatOra(crono.fine)}</span></div>
       <p class="titolo num">${E.formatDurata(durata)}</p>
-      <div class="tiles">${tile('Turno', `${E.durataTurnoMin(c)}<small>min</small>`, 'bianco')}${tile('Cambio', `${c.cambio}<small>min</small>`, 'bianco')}${tile('Inizio', esc(c.inizio), 'bianco')}</div>` })}
+      <div class="tiles orari">${tile('Turno', `${E.durataTurnoMin(c)}<small>min</small>`, 'bianco')}${tile('Cambio', `${c.cambio}<small>min</small>`, 'bianco')}${tile('Inizio', esc(c.inizio), 'bianco', 'dur-inizio')}</div>` })}
     <button class="btn primario blocco-w" data-azione="salva-config">Salva e continua ${ICONE.freccia}</button>`;
 }
 
@@ -992,6 +1005,7 @@ document.addEventListener('click', (ev) => {
 
 document.addEventListener('change', (ev) => {
   const el = ev.target;
+  if (el.id === 'cfg-ora') aggiornaDurata();
   const campo = el.dataset && el.dataset.campo;
   if (!campo || !S.data) return;
   if (campo === 'nome') { const v = el.value.trim(); if (v) S.store.updateMeta(S.tid, { name: v }).catch((e) => toast(erroreLeggibile(e))); }
@@ -1000,6 +1014,7 @@ document.addEventListener('change', (ev) => {
 });
 
 document.addEventListener('input', (ev) => {
+  if (ev.target.id === 'cfg-ora') { aggiornaDurata(); return; }
   if (!S.sheet || S.sheet.tipo !== 'risultato') return;
   if (ev.target.classList.contains('smz')) {
     for (const lato of ['a', 'b']) {

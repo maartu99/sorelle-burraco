@@ -340,3 +340,5 @@ select.input { background-image: linear-gradient(45deg, transparent 50%, var(--i
 .anteprima-vp .lato { display: flex; flex-direction: column; gap: 2px; }
 .anteprima-vp .lato:last-child { text-align: right; }
 .anteprima-vp .grande { font-family: 'Syne'; font-weight: 800; font-size: 44px; line-height: 1; }
+
+.tiles.orari .val { font-size: clamp(14px, 4.4vw, 17px); white-space: nowrap; overflow-wrap: normal; }
