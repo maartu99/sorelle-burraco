@@ -326,6 +326,7 @@ function setupCoppie() {
   const liberi = pres.filter((id) => !usati.has(id));
   const modo = t.draft.modo || 'casuale';
   const nomi = (id) => esc(t.players[id]?.name || '?');
+  const erroreCoppie = draft.length ? E.verificaCoppie(draft.map((c) => [c.p1, c.p2]), pres, true) : null;
   return `
     <div class="segmenti">${[['casuale', 'Casuale'], ['manuale', 'Manuale'], ['mista', 'Mista']].map(([k, l]) => `<button class="${modo === k ? 'attivo' : ''}" data-azione="modo-coppie" data-v="${k}">${l}</button>`).join('')}</div>
     <p class="testo-muto">${modo === 'casuale' ? 'Tutte le coppie vengono estratte a sorte.' : modo === 'manuale' ? 'Tocca due giocatori per formare una coppia.' : 'Forma a mano le coppie che vuoi fissare, poi estrai a sorte le altre.'}</p>
@@ -339,7 +340,8 @@ function setupCoppie() {
         <button class="icona-btn" data-azione="sciogli" data-k="${k}" aria-label="Sciogli la coppia">${ICONE.chiudi}</button></div>`).join('')}</div>` : ''}
     ${draft.length && modo !== 'manuale' ? `<button class="btn blocco" data-azione="ri-estrai">${ICONE.azzera} Estrai di nuovo</button>` : ''}
     ${pres.length % 2 ? '<div class="avviso">Numero di giocatori presenti dispari: sistema le presenze prima di confermare.</div>' : ''}
-    <button class="btn primario blocco" data-azione="conferma-coppie" ${liberi.length || draft.length < 3 ? 'disabled' : ''}>Conferma coppie ${ICONE.freccia}</button>
+    ${erroreCoppie ? `<div class="avviso"><strong>Coppie da correggere</strong><span>${esc(erroreCoppie)} Sciogli le coppie sbagliate oppure usa "Estrai di nuovo".</span></div>` : ''}
+    <button class="btn primario blocco" data-azione="conferma-coppie" ${liberi.length || draft.length < 3 || erroreCoppie ? 'disabled' : ''}>Conferma coppie ${ICONE.freccia}</button>
     <p class="testo-muto">${draft.length ? `${draft.length} coppie${draft.length % 2 ? ': a ogni turno una coppia riposa' : ''}. ` : ''}Dopo la conferma le coppie restano fisse per tutto il torneo.</p>`;
 }
 
@@ -701,6 +703,8 @@ const azioni = {
   'modo-coppie'(el) { S.selezione = null; salva({ ...S.data, draft: { ...S.data.draft, modo: el.dataset.v } }); },
   scegli(el) {
     const id = el.dataset.id;
+    const occupati = new Set(Object.values(S.data.draft.coppie || {}).flatMap((c) => [c.p1, c.p2]));
+    if (occupati.has(id) || (S.selezione && occupati.has(S.selezione))) { S.selezione = null; render(); return toast('Questo giocatore è già in una coppia.'); }
     if (!S.selezione) { S.selezione = id; return render(); }
     if (S.selezione === id) { S.selezione = null; return render(); }
     const coppie = { ...(S.data.draft.coppie || {}), [nuovoId('c')]: { p1: S.selezione, p2: id, bloccata: true } };
@@ -717,10 +721,13 @@ const azioni = {
     salva({ ...S.data, draft: { ...S.data.draft, coppie } });
   },
   'ri-estrai'() {
+    // Un solo salvataggio: le coppie estratte prima vengono sostituite, non aggiunte.
     const restano = Object.fromEntries(Object.entries(S.data.draft.coppie || {}).filter(([, c]) => c.bloccata && (S.data.draft.modo || 'casuale') !== 'casuale'));
-    const t = { ...S.data, draft: { ...S.data.draft, coppie: restano } };
-    S.data = E.normalizza(t);
-    azioni.estrai();
+    const { nuove } = E.formaCoppieCasuali(giocatoriPresenti(), Object.values(restano).map((c) => [c.p1, c.p2]));
+    const coppie = { ...restano };
+    nuove.forEach(([p1, p2]) => { coppie[nuovoId('c')] = { p1, p2, bloccata: false }; });
+    S.selezione = null;
+    salva({ ...S.data, draft: { ...S.data.draft, coppie } });
   },
   sciogli(el) {
     const coppie = { ...(S.data.draft.coppie || {}) }; delete coppie[el.dataset.k];
@@ -728,6 +735,8 @@ const azioni = {
   },
   'conferma-coppie'() {
     const lista = Object.values(S.data.draft.coppie || {}).map((c) => [c.p1, c.p2]);
+    const errore = E.verificaCoppie(lista, giocatoriPresenti());
+    if (errore) return toast(errore);
     const t = E.confermaCoppie(S.data, lista);
     const n = t.order.length;
     // Adatta i turni al massimo consentito, se serve.

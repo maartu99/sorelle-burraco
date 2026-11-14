@@ -436,8 +436,26 @@ export function formaCoppieCasuali(presenti, bloccate = [], random = Math.random
   return { nuove, avanzati };
 }
 
+// Controlla che ogni giocatore sia in una sola coppia e che le coppie siano di due persone presenti.
+// Con soloDoppioni, ignora i giocatori presenti ancora da abbinare.
+export function verificaCoppie(coppie, presenti, soloDoppioni = false) {
+  const visti = new Map();
+  for (const [p1, p2] of coppie) {
+    if (!p1 || !p2 || p1 === p2) return 'C\'è una coppia non valida.';
+    for (const p of [p1, p2]) visti.set(p, (visti.get(p) || 0) + 1);
+  }
+  const doppi = [...visti.entries()].filter(([, n]) => n > 1).map(([p]) => p);
+  if (doppi.length) return `${doppi.length === 1 ? 'Un giocatore è' : `${doppi.length} giocatori sono`} in più di una coppia.`;
+  const pres = new Set(presenti);
+  if ([...visti.keys()].some((p) => !pres.has(p))) return 'C\'è una coppia con un giocatore non presente.';
+  if (!soloDoppioni && presenti.some((p) => !visti.has(p))) return 'Ci sono giocatori presenti senza coppia.';
+  return null;
+}
+
 // Conferma le coppie: assegna le lettere e un ordine casuale (seme del torneo).
 export function confermaCoppie(t, coppie) {
+  const err = verificaCoppie(coppie, coppie.flat());
+  if (err) throw new Error(err);
   const pairs = {};
   coppie.forEach(([p1, p2], i) => {
     const id = lettera(i);

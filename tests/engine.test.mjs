@@ -234,3 +234,19 @@ test('timer: pausa e ripresa', () => {
   const ripreso = { ...timer, pausedMs: 60000, pausedAt: null };
   assert.equal(E.tempoResiduoMs(ripreso, 181000), 42 * 60000 - 120000);
 });
+
+test('coppie: un giocatore non può stare in due coppie', () => {
+  assert.match(E.verificaCoppie([['a', 'b'], ['a', 'c']], ['a', 'b', 'c', 'd']), /più di una coppia/);
+  assert.match(E.verificaCoppie([['a', 'a']], ['a']), /non valida/);
+  assert.match(E.verificaCoppie([['a', 'b']], ['a', 'b', 'c', 'd']), /senza coppia/);
+  assert.equal(E.verificaCoppie([['a', 'b']], ['a', 'b', 'c', 'd'], true), null);
+  assert.equal(E.verificaCoppie([['a', 'b'], ['c', 'd']], ['a', 'b', 'c', 'd']), null);
+  assert.throws(() => E.confermaCoppie(E.nuovoTorneo(), [['a', 'b'], ['b', 'c']]));
+  // L'estrazione non riusa mai giocatori già bloccati.
+  for (let seed = 1; seed < 50; seed++) {
+    const pres = Array.from({ length: 16 }, (_, i) => 'g' + i);
+    const bloccate = [['g0', 'g5'], ['g3', 'g9']];
+    const { nuove } = E.formaCoppieCasuali(pres, bloccate, E.rng(seed));
+    assert.equal(E.verificaCoppie([...bloccate, ...nuove], pres), null);
+  }
+});
