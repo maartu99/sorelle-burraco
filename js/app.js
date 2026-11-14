@@ -111,6 +111,14 @@ function render() {
   const focusId = att && att.id && $app.contains(att) ? att.id : null;
   const sel = focusId && 'selectionStart' in att ? [att.selectionStart, att.selectionEnd] : null;
   const scrollY = window.scrollY;
+  // Conserva i valori scritti dall'utente e non ancora salvati: un aggiornamento dei dati
+  // (anche da un altro telefono) ridisegna la pagina e non deve cancellarli.
+  const modificati = {};
+  $app.querySelectorAll('input[id], select[id]').forEach((el) => {
+    if (el.type === 'checkbox') return;
+    const iniziale = el.tagName === 'SELECT' ? null : el.defaultValue;
+    if (iniziale !== null && el.value !== iniziale) modificati[el.id] = el.value;
+  });
 
   let html = '';
   if (S.view === 'caricamento') html = `<div class="contenuto senza-nav"><p class="testo-muto">Caricamento...</p></div>`;
@@ -119,6 +127,10 @@ function render() {
   else if (S.view === 'torneo') html = vistaTorneo();
   $app.innerHTML = html;
 
+  for (const [id, v] of Object.entries(modificati)) {
+    const el = document.getElementById(id);
+    if (el && el.tagName !== 'SELECT') el.value = v;
+  }
   if (focusId) {
     const el = document.getElementById(focusId);
     if (el) { el.focus({ preventScroll: true }); if (sel) try { el.setSelectionRange(sel[0], sel[1]); } catch (e) { /* */ } }
@@ -234,10 +246,10 @@ function setupTorneo() {
   const errTurni = n >= 3 && c.turni > max;
   return `
     <div class="scheda">
-      <div class="campo"><label for="cfg-nome">Nome del torneo</label><input id="cfg-nome" class="input" maxlength="80" value="${esc(S.meta.name)}" data-campo="nome"></div>
+      <div class="campo"><label for="cfg-nome">Nome del torneo</label><input id="cfg-nome" class="input" maxlength="80" value="${esc(S.meta.name)}"></div>
       <div class="griglia-2">
-        <div class="campo"><label for="cfg-data">Data</label><input id="cfg-data" class="input" type="date" value="${esc(c.data)}" data-campo="data"></div>
-        <div class="campo"><label for="cfg-ora">Inizio</label><input id="cfg-ora" class="input" type="time" value="${esc(c.inizio)}" data-campo="inizio"></div>
+        <div class="campo"><label for="cfg-data">Data</label><input id="cfg-data" class="input" type="date" value="${esc(c.data)}"></div>
+        <div class="campo"><label for="cfg-ora">Inizio</label><input id="cfg-ora" class="input" type="time" value="${esc(c.inizio)}"></div>
       </div>
     </div>
     <div class="scheda">
@@ -267,7 +279,8 @@ function setupTorneo() {
       <p class="etichetta" style="color:var(--ink)">Durata prevista</p>
       <p class="titolo num">circa ${E.formatDurata(durata)}</p>
       <p>Fine prevista alle ${E.formatOra(crono.fine)}. Turni da ${E.durataTurnoMin(c)} minuti, ${c.cambio} minuti tra un turno e l'altro, ${c.spiegazione} di spiegazione iniziale e ${c.premiazione} di premiazione.</p>
-    </div>`;
+    </div>
+    <button class="btn primario blocco" data-azione="salva-config">Salva e continua ${ICONE.freccia}</button>`;
 }
 
 function setupGiocatori() {
@@ -649,6 +662,16 @@ const azioni = {
     if (k !== 'sistema') v = Number(v);
     const t = { ...S.data, config: { ...S.data.config, [k]: v } };
     salva(t);
+  },
+  async 'salva-config'() {
+    const nome = val('cfg-nome');
+    if (!nome) return toast('Dai un nome al torneo.');
+    const config = { ...S.data.config, data: val('cfg-data'), inizio: val('cfg-ora') || S.data.config.inizio };
+    await salva({ ...S.data, config }, { name: nome });
+    toast('Impostazioni del torneo salvate.');
+    S.setupTab = 'giocatori';
+    render();
+    window.scrollTo(0, 0);
   },
   turni(el) {
     const n = Math.max(1, Math.min(20, S.data.config.turni + Number(el.dataset.d)));
