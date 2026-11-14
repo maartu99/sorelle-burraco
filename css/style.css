@@ -352,3 +352,13 @@ select.input { background-image: linear-gradient(45deg, transparent 50%, var(--i
 .anteprima-vp .grande { font-family: 'Syne'; font-weight: 800; font-size: 44px; line-height: 1; }
 
 .tiles.orari .val { font-size: clamp(14px, 4.4vw, 17px); white-space: nowrap; overflow-wrap: normal; }
+
+/* Temi colore scelti nel profilo (salvati sul telefono) */
+:root[data-tema="rosa"] { --rosso: #d6246e; --rosso-scuro: #a3134f; --rosso-chiaro: #ffd9e8; --blu: #8e3fa8; --blu-scuro: #5e2275; --blu-chiaro: #f1dcfa; --giallo: #ffb3cf; --giallo-chiaro: #ffe8f1; --verde: #e0457f; --verde-chiaro: #ffe0ec; --rosa: #ffc2d8; --bg: #fff6f9; --crema: #fbe9f0; --crema-2: #f5d9e4; --linea: #e9bfd0; }
+:root[data-tema="blu"] { --rosso: #1f5fd1; --rosso-scuro: #123f94; --rosso-chiaro: #d9e6ff; --blu: #0f2f6b; --blu-scuro: #081c45; --blu-chiaro: #dbe4f7; --giallo: #5fc6f5; --giallo-chiaro: #dff4fd; --verde: #2e86c1; --verde-chiaro: #dcedf8; --rosa: #a9d4f5; --bg: #f5f8fd; --crema: #e8eef8; --crema-2: #d8e2f2; --linea: #b9c9e2; }
+:root[data-tema="verde"] { --rosso: #1f8a4c; --rosso-scuro: #13613a; --rosso-chiaro: #d6f2e1; --blu: #2f5d3a; --blu-scuro: #1c3d25; --blu-chiaro: #dcebdf; --giallo: #b7e04a; --giallo-chiaro: #f0f8d6; --verde: #3aa673; --verde-chiaro: #d8f1e4; --rosa: #bfe6c9; --bg: #f6faf5; --crema: #e9f2e8; --crema-2: #d9e8d7; --linea: #b8d3b5; }
+:root[data-tema="giallo"] { --rosso: #e08a00; --rosso-scuro: #a86400; --rosso-chiaro: #ffe8c2; --blu: #5b4a1c; --blu-scuro: #3b2f10; --blu-chiaro: #f3ead3; --giallo: #ffd60a; --giallo-chiaro: #fff6c2; --verde: #c9a100; --verde-chiaro: #fbf1c4; --rosa: #ffd98a; --bg: #fffbef; --crema: #f8f0d8; --crema-2: #efe3bf; --linea: #e0cf9a; }
+.temi { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.temi button { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 0; border: var(--b2); background: var(--carta); font-family: 'Anybody'; font-weight: 800; font-size: clamp(7.5px, 2.2vw, 10px); letter-spacing: -.01em; text-transform: uppercase; color: var(--ink); min-width: 0; }
+.temi button.attivo { box-shadow: var(--ombra-s); background: var(--giallo-chiaro); }
+.temi .pallino { width: 30px; height: 30px; border: var(--b2); border-radius: 50%; display: block; }

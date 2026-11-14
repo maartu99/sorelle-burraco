@@ -1,7 +1,7 @@
-import * as E from './engine.js?v=10';
-import { TEMPI, SISTEMI, TABELLE_VP, RIPOSO, CRITERI_PARITA, FONTI, RIDUZIONE_MAX, SMAZZATE_AMMESSE } from './regolamento.js?v=10';
-import { creaStore } from './store.js?v=10';
-import { OMINO, MARCHIO, ICONE, GOOGLE, SEMI } from './grafica.js?v=10';
+import * as E from './engine.js?v=11';
+import { TEMPI, SISTEMI, TABELLE_VP, RIPOSO, CRITERI_PARITA, FONTI, RIDUZIONE_MAX, SMAZZATE_AMMESSE } from './regolamento.js?v=11';
+import { creaStore } from './store.js?v=11';
+import { OMINO, MARCHIO, ICONE, GOOGLE, SEMI } from './grafica.js?v=11';
 
 // ================= Stato =================
 const S = {
@@ -293,6 +293,13 @@ function vistaHome() {
 }
 
 // ================= Profilo =================
+const TEMI = [['classico', 'Classico', 'conic-gradient(#c0280b 0 33%, #f5c800 0 66%, #4f599e 0)'], ['rosa', 'Rosa', 'conic-gradient(#d6246e 0 50%, #8e3fa8 0)'], ['blu', 'Blu', 'conic-gradient(#1f5fd1 0 50%, #0f2f6b 0)'], ['verde', 'Verde', 'conic-gradient(#1f8a4c 0 50%, #b7e04a 0)'], ['giallo', 'Giallo', 'conic-gradient(#ffd60a 0 50%, #e08a00 0)']];
+function temaAttuale() { try { return localStorage.getItem('sb-tema') || 'classico'; } catch (e) { return 'classico'; } }
+function applicaTema(k) {
+  if (k === 'classico') delete document.documentElement.dataset.tema; else document.documentElement.dataset.tema = k;
+  try { localStorage.setItem('sb-tema', k); } catch (e) { /* telefono senza memoria locale: vale solo per ora */ }
+}
+
 function vistaProfilo() {
   const u = S.user;
   const admin = S.tornei.filter((m) => m.role === 'admin').length;
@@ -308,6 +315,9 @@ function vistaProfilo() {
         <p class="muto testo-s">È il nome che vedono gli altri partecipanti nei tornei a cui entri da adesso.</p>
         <div class="campo"><label for="profilo-nome">Nome</label><input id="profilo-nome" class="input" maxlength="40" value="${esc(u.name)}" autocomplete="name"></div>
         <button class="btn giallo blocco-w" data-azione="salva-profilo">Salva il nome</button>` })}
+      ${card({ testa: 'Colore dell\'app', corpo: `
+        <div class="temi">${TEMI.map(([k, n, g]) => `<button class="${temaAttuale() === k ? 'attivo' : ''}" data-azione="tema" data-v="${k}" aria-label="Colore ${n}"><span class="pallino" style="background:${g}"></span>${n}</button>`).join('')}</div>
+        <p class="muto testo-s" style="margin:0">Vale solo per te, su questo telefono.</p>` })}
       ${S.store.mode !== 'prova' && u.email && !u.google ? card({ testa: 'Password', corpo: `<p class="muto testo-s">Ti mandiamo un'email con il link per cambiarla.</p>
         <button class="btn blocco-w" data-azione="cambia-pw">Cambia password</button>` }) : ''}
       <button class="btn primario blocco-w" data-azione="esci">${ICONE.esci} Esci</button>
@@ -1138,6 +1148,7 @@ const azioni = {
     salva({ ...t, players, pairs: { ...t.pairs, [f.id]: { ...pr, [lato]: entra, titolari, sostituzioni: sost } } });
     toast(`${players[entra].name} entra al posto di ${t.players[f.pid]?.name}.`);
   },
+  tema(el) { applicaTema(el.dataset.v); render(); },
   'chiudi-foglio'() { chiudiFoglio(); },
   velo(el, ev) { if (ev.target === el) chiudiFoglio(); },
 };
