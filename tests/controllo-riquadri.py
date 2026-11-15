@@ -34,23 +34,23 @@ CHECK = """(() => {
   }
   return [...new Set(out)];
 })()"""
-NOMI=['Mat','Vlad','Palli','Rambo','Nat','Ponti','Linda','Pippo','Cate','Bruzzi','Titti','Mimmo','Fiffo','Pat','Lucia','Silvia']
+NOMI=['Massimiliano','Vlad','Palli','Rambo','Nat','Ponti','Linda','Pippo','Cate','Bruzzi','Titti','Mimmo','Fiffo','Pat','Lucia','Gianfrancesco']
 async def main():
     tot = 0
     async with async_playwright() as p:
         b=await p.chromium.launch()
-        for w in (320, 375, 390, 430):
+        for w, NOME_T in ((320,'Eliminazione'),(360,'Supercampionato'),(375,'Burraco del sabato sera tra amiche'),(390,'Eliminazione'),(393,'Eliminazione'),(393,'Torneone'),(414,'Precisissimamente'),(430,'Eliminazione')):
             pg=await b.new_page(viewport={'width':w,'height':844}, device_scale_factor=2)
             await pg.route('**/firebase-config.js', lambda r: r.fulfill(content_type='application/javascript', body="export const firebaseConfig={apiKey:''};"))
             async def chk(nome):
                 nonlocal tot
                 await pg.wait_for_timeout(250)
                 r = await pg.evaluate(CHECK)
-                if r: tot += len(r); print(f'[{w}] {nome}:'); [print('   ', x) for x in r]
+                if r: tot += len(r); print(f'[{w} {NOME_T}] {nome}:'); [print('   ', x) for x in r]
             await pg.goto('http://localhost:8765/index.html'); await pg.wait_for_timeout(400); await chk('accesso')
             await pg.fill('#prova-nome','Mattia Matteucci'); await pg.click('[data-azione=entra-prova]'); await pg.wait_for_timeout(300); await chk('home vuota')
             await pg.click('[data-azione=apri-crea]'); await chk('foglio crea')
-            await pg.fill('#crea-nome','Burraco del sabato sera tra amiche'); await pg.click('[data-azione=crea]'); await pg.wait_for_timeout(300); await chk('setup torneo punti')
+            await pg.fill('#crea-nome', NOME_T); await pg.click('[data-azione=crea]'); await pg.wait_for_timeout(300); await chk('setup torneo punti')
             await pg.click('[data-azione=cfg][data-k=formato][data-v=eliminazione]'); await chk('setup eliminazione')
             await pg.click('[data-azione=salva-config]'); await pg.wait_for_timeout(200)
             for n in NOMI: await pg.fill('#nuovo-giocatore', n); await pg.keyboard.press('Enter'); await pg.wait_for_timeout(20)

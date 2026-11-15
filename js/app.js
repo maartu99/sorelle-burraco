@@ -1,7 +1,7 @@
-import * as E from './engine.js?v=19';
-import { TEMPI, SISTEMI, TABELLE_VP, RIPOSO, CRITERI_PARITA, FONTI, RIDUZIONE_MAX, SMAZZATE_AMMESSE } from './regolamento.js?v=19';
-import { creaStore, chiaveEmail, emailValida } from './store.js?v=19';
-import { OMINO, MARCHIO, ICONE, GOOGLE, SEMI } from './grafica.js?v=19';
+import * as E from './engine.js?v=20';
+import { TEMPI, SISTEMI, TABELLE_VP, RIPOSO, CRITERI_PARITA, FONTI, RIDUZIONE_MAX, SMAZZATE_AMMESSE } from './regolamento.js?v=20';
+import { creaStore, chiaveEmail, emailValida } from './store.js?v=20';
+import { OMINO, MARCHIO, ICONE, GOOGLE, SEMI } from './grafica.js?v=20';
 
 // ================= Stato =================
 const S = {
@@ -161,6 +161,7 @@ function render() {
   $app.innerHTML = html;
   const pagina = $app.querySelector('.contenuto');
   if (pagina) pagina.insertAdjacentHTML('beforeend', FIRMA);
+  adattaTesti($app);
 
   for (const [id, v] of Object.entries(modificati)) {
     const el = document.getElementById(id);
@@ -960,6 +961,7 @@ function renderFoglio() {
   $foglio.innerHTML = `<div class="velo" data-azione="velo"><div class="foglio" role="dialog" aria-modal="true">
     <button class="icona-btn chiudi" data-azione="chiudi-foglio" aria-label="Chiudi">${ICONE.chiudi}</button>${c}</div></div>`;
   if (f.tipo === 'risultato') aggiornaAnteprima();
+  adattaTesti($foglio);
   const primo = $foglio.querySelector('input');
   if (primo && f.tipo !== 'risultato') setTimeout(() => primo.focus(), 50);
 }
@@ -1590,8 +1592,25 @@ function suonaSigla(ev) {
   if (siglaFatta) return;
   if (!siglaAttiva() || (ev && ev.target && ev.target.closest && ev.target.closest('[data-azione=sigla]'))) return;
   siglaFatta = true;
-  siglaAudio = siglaAudio || new Audio('audio/sigla.mp3?v=19');
+  siglaAudio = siglaAudio || new Audio('audio/sigla.mp3?v=20');
   siglaAudio.volume = 0.9;
   siglaAudio.play().then(() => document.removeEventListener('pointerdown', suonaSigla, true)).catch(() => { siglaFatta = false; });
 }
 document.addEventListener('pointerdown', suonaSigla, true);
+
+// Titoli e nomi scritti da voi (nome del torneo, nomi delle coppie): se una parola non sta nella riga,
+// il carattere si rimpicciolisce finché la parola sta intera. Mai lettere a capo da sole.
+const DA_ADATTARE = '.testata h1, .titolo, .titolo-m, .blocco .nome, .nome-tocca span, .elim-lato .nome-c, .gradino .chi, .classifica strong, .tb-riga .nome, .vs-riga .chi, .persona .nome, .nome-p';
+function adattaTesti(radice) {
+  for (const el of radice.querySelectorAll(DA_ADATTARE)) {
+    el.style.fontSize = '';
+    if (!el.clientWidth) continue;
+    const prima = el.style.overflowWrap;
+    el.style.overflowWrap = 'normal'; el.style.wordBreak = 'normal';
+    let px = parseFloat(getComputedStyle(el).fontSize);
+    const minimo = Math.max(10, px * 0.55);
+    while (el.scrollWidth > el.clientWidth + 1 && px > minimo) { px -= 0.5; el.style.fontSize = `${px}px`; }
+    el.style.overflowWrap = prima; el.style.wordBreak = '';
+  }
+}
+window.addEventListener('resize', () => { adattaTesti(document.body); });
