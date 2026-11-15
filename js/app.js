@@ -1,7 +1,7 @@
-import * as E from './engine.js?v=12';
-import { TEMPI, SISTEMI, TABELLE_VP, RIPOSO, CRITERI_PARITA, FONTI, RIDUZIONE_MAX, SMAZZATE_AMMESSE } from './regolamento.js?v=12';
-import { creaStore, chiaveEmail, emailValida } from './store.js?v=12';
-import { OMINO, MARCHIO, ICONE, GOOGLE, SEMI } from './grafica.js?v=12';
+import * as E from './engine.js?v=13';
+import { TEMPI, SISTEMI, TABELLE_VP, RIPOSO, CRITERI_PARITA, FONTI, RIDUZIONE_MAX, SMAZZATE_AMMESSE } from './regolamento.js?v=13';
+import { creaStore, chiaveEmail, emailValida } from './store.js?v=13';
+import { OMINO, MARCHIO, ICONE, GOOGLE, SEMI } from './grafica.js?v=13';
 
 // ================= Stato =================
 const S = {
@@ -354,10 +354,11 @@ function vistaProfilo() {
 // ================= Torneo =================
 function bandaTorneo() {
   const t = S.data;
-  if (t.status === 'setup') return banda(['Preparazione', 'Presenze e coppie', SISTEMI[t.config.sistema].nome]);
+  const sist = E.isElim(t) ? 'Eliminazione' : SISTEMI[t.config.sistema].nome;
+  if (t.status === 'setup') return banda(['Preparazione', 'Presenze e coppie', sist]);
   if (t.status === 'finished') return banda(['Torneo concluso', 'Classifica finale', `${t.order.length} coppie`]);
   const n = E.turnoCorrente(t);
-  return banda([`Turno ${n} di ${t.config.turni}`, SISTEMI[t.config.sistema].nome, `${t.config.smazzate} smazzate`]);
+  return banda([`Turno ${n} di ${t.config.turni}`, sist, E.isElim(t) ? `${E.durataTurnoMin(t.config)} minuti` : `${t.config.smazzate} smazzate`]);
 }
 
 function vistaTorneo() {
@@ -402,12 +403,52 @@ function aggiornaDurata() {
   if (!ora || !fine || !ini || !S.data) return;
   const inizio = /^\d{1,2}:\d{2}/.test(ora.value) ? ora.value.slice(0, 5) : S.data.config.inizio;
   const c = { ...S.data.config, inizio };
-  fine.textContent = `Fine ${E.formatOra(E.cronoprogramma(c, c.turni).fine)}`;
+  const nt = c.formato === 'eliminazione' ? E.turniEliminazione(nCoppiePreviste()) : c.turni;
+  fine.textContent = `Fine ${E.formatOra(E.cronoprogramma(c, nt).fine)}`;
   ini.textContent = inizio;
+}
+
+function cardFormato(c) {
+  const el = c.formato === 'eliminazione';
+  const op = (k, nome, desc) => `<button class="opzione" role="radio" aria-checked="${(c.formato || 'punti') === k}" data-azione="cfg" data-k="formato" data-v="${k}">
+    <span class="rombo"></span><span class="colonna cresce"><strong>${nome}</strong><span class="testo-s">${desc}</span></span></button>`;
+  return card({ testa: 'Formato', testaCls: el ? 'rossa' : 'blu', corpo:
+    op('punti', 'Punti vittoria (regolamento FIBur)', 'Turni a smazzate fisse, punti vittoria da 0 a 20, classifica unica.')
+    + op('eliminazione', 'Eliminazione (serata tra amici)', 'Si gioca a tempo: al tavolo vince la coppia che fa più punti in totale. Chi vince va avanti, chi perde continua a giocare per i posti più bassi. Tutti giocano ogni turno.') });
+}
+
+function setupEliminazione() {
+  const c = S.data.config;
+  const n = nCoppiePreviste();
+  const turni = E.turniEliminazione(n);
+  const durata = E.durataPrevista(c, turni);
+  const crono = E.cronoprogramma(c, turni);
+  return `
+    ${card({ testa: 'Il torneo', testaCls: 'blu', corpo: `
+      <div class="campo"><label for="cfg-nome">Nome del torneo</label><input id="cfg-nome" class="input" maxlength="80" value="${esc(S.meta.name)}"></div>
+      <div class="griglia-2">
+        <div class="campo"><label for="cfg-data">Data</label><input id="cfg-data" class="input" type="date" value="${esc(c.data)}"></div>
+        <div class="campo"><label for="cfg-ora">Inizio</label><input id="cfg-ora" class="input" type="time" value="${esc(c.inizio)}"></div>
+      </div>` })}
+    ${cardFormato(c)}
+    ${card({ testa: 'Minuti al tavolo', corpo: `
+      <div class="stepper"><button data-azione="minuti" data-d="-5" aria-label="Meno minuti">-</button><output class="num">${c.minuti || 45}</output><button data-azione="minuti" data-d="5" aria-label="Più minuti">+</button></div>
+      <p class="muto testo-s">Allo scadere del tempo non si inizia una nuova partita: si finisce quella in corso e si sommano i punti di tutte le partite giocate al tavolo.</p>` })}
+    ${card({ testa: 'Come va avanti', corpo: `
+      <p class="testo-s" style="margin:0">${n >= 2 ? `Con ${n} coppie si giocano <strong>${turni} turni</strong>.` : 'Il numero di turni dipende dalle coppie: lo vedi dopo le presenze.'}</p>
+      <p class="testo-s" style="margin:0">Primo turno a sorte. Poi chi ha vinto gioca contro chi ha vinto e chi ha perso contro chi ha perso: semifinali, finale per il 1° posto, finale per il 3° posto e così via fino all'ultimo posto.</p>
+      <p class="testo-s" style="margin:0">Se le vincenti sono dispari, si ripesca la perdente con più punti fatti in tutto il torneo. A pari punti al tavolo si gioca una mano di spareggio.</p>
+      ${n >= 2 && n % 2 === 1 ? avviso('Coppie dispari', `Con ${n} coppie una resterebbe senza avversario: per l'eliminazione servono coppie pari.`) : ''}` })}
+    ${card({ cls: 'gialla', corpo: `
+      <div class="riga spazio"><span class="etichetta">Durata prevista</span><span class="badge nero" id="dur-fine">Fine ${E.formatOra(crono.fine)}</span></div>
+      <p class="titolo num">${E.formatDurata(durata)}</p>
+      <div class="tiles orari">${tile('Turno', `${E.durataTurnoMin(c)}<small>min</small>`, 'bianco')}${tile('Cambio', `${c.cambio}<small>min</small>`, 'bianco')}${tile('Inizio', esc(c.inizio), 'bianco', 'dur-inizio')}</div>` })}
+    <button class="btn primario blocco-w" data-azione="salva-config">Salva e continua ${ICONE.freccia}</button>`;
 }
 
 function setupTorneo() {
   const c = S.data.config;
+  if (c.formato === 'eliminazione') return setupEliminazione();
   const n = nCoppiePreviste();
   const max = E.maxTurni(c.sistema, n);
   const sugg = E.sistemaSuggerito(n, c.turni);
@@ -421,6 +462,7 @@ function setupTorneo() {
         <div class="campo"><label for="cfg-data">Data</label><input id="cfg-data" class="input" type="date" value="${esc(c.data)}"></div>
         <div class="campo"><label for="cfg-ora">Inizio</label><input id="cfg-ora" class="input" type="time" value="${esc(c.inizio)}"></div>
       </div>` })}
+    ${cardFormato(c)}
     ${card({ testa: 'Smazzate e tempo', corpo: `
       <div class="segmenti">${SMAZZATE_AMMESSE.map((s) => `<button class="${c.smazzate === s ? 'attivo' : ''}" data-azione="cfg" data-k="smazzate" data-v="${s}">${s} smazzate<small>${TEMPI[s]} minuti</small></button>`).join('')}</div>
       <span class="etichetta">Riduzione del tempo</span>
@@ -482,7 +524,7 @@ function setupCoppie() {
       ${elencoCoppie()}
       ${err.length ? avviso('Da correggere', `${err.map(esc).join(' ')} Correggi nella scheda "Torneo".`) : ''}
       ${card({ cls: 'gialla', corpo: `<div class="riga"><span class="mini-omino">${OMINO}</span><div class="colonna"><span class="etichetta">Pronto a partire</span>
-        <strong>${SISTEMI[t.config.sistema].nome}</strong><span class="testo-s">${t.config.turni} turni da ${t.config.smazzate} smazzate (${E.durataTurnoMin(t.config)} minuti)</span></div></div>
+        ${E.isElim(t) ? `<strong>Eliminazione</strong><span class="testo-s">${E.turniEliminazione(t.order.length)} turni da ${E.durataTurnoMin(t.config)} minuti</span>` : `<strong>${SISTEMI[t.config.sistema].nome}</strong><span class="testo-s">${t.config.turni} turni da ${t.config.smazzate} smazzate (${E.durataTurnoMin(t.config)} minuti)</span>`}</div></div>
         <button class="btn primario blocco-w" data-azione="avvia" ${err.length ? 'disabled' : ''}>Avvia il torneo ${ICONE.freccia}</button>` })}
       <button class="btn blocco-w" data-azione="sblocca-coppie">Modifica le coppie</button>`;
   }
@@ -523,14 +565,15 @@ function vistaTurno() {
   const mia = miaCoppia();
   const mancanti = E.risultatiMancanti(r);
   const sm = t.config.smazzate;
+  const elim = E.isElim(t);
   const timer = r.timer;
   const adm = isAdmin();
   const tavoli = Object.entries(r.tables).sort((a, b) => a[0] - b[0]);
   const fatti = tavoli.length - mancanti;
   const stato = !timer || !timer.startedAt ? 'Da avviare' : timer.pausedAt ? 'In pausa' : 'In corso';
   const pannello = card({ testa: 'Pannello del turno', testaCls: 'nera', destra: `<span class="badge ${stato === 'In corso' ? 'rosso' : 'giallo'}" id="timer-stato">${stato}</span>`, corpo: `
-    <div class="riga spazio"><div class="colonna"><span class="etichetta blu-t">${SISTEMI[t.config.sistema].nome}</span><h2 class="titolo-m">Turno ${n} di ${t.config.turni}</h2></div>
-      <span class="tile giallo" style="padding:8px 10px;text-align:center"><span class="etichetta">Smazzate</span><span class="val num">${sm}</span></span></div>
+    <div class="riga spazio"><div class="colonna"><span class="etichetta blu-t">${elim ? 'Eliminazione' : SISTEMI[t.config.sistema].nome}</span><h2 class="titolo-m">Turno ${n} di ${t.config.turni}</h2></div>
+      <span class="tile giallo" style="padding:8px 10px;text-align:center"><span class="etichetta">${elim ? 'Minuti' : 'Smazzate'}</span><span class="val num" style="white-space:nowrap">${elim ? E.durataTurnoMin(t.config) : sm}</span></span></div>
     <div class="tiles">
       <div class="tile bianco" style="grid-column: span 2"><span class="etichetta">Tempo residuo</span><span class="timer num" id="timer-testo">${E.durataTurnoMin(t.config)}:00</span></div>
       ${tile('Risultati', `${fatti}<small>/${tavoli.length}</small>`)}
@@ -545,8 +588,9 @@ function vistaTurno() {
     ${timer && timer.startedAt ? `<button class="comando bianco" data-azione="timer" data-v="azzera"><span class="ico">${ICONE.azzera}</span><span><span class="t">Azzera il timer</span><span class="s">Torna a ${E.durataTurnoMin(t.config)} minuti</span></span></button>` : ''}` : '';
   const listaTavoli = tavoli.map(([k, tb]) => {
     const res = r.results[k];
-    const c = res ? E.calcolaPartita(res.a, res.b, sm) : null;
+    const c = res ? (elim ? { elim: true } : E.calcolaPartita(res.a, res.b, sm)) : null;
     const miaQui = mia && (tb.a === mia || tb.b === mia);
+    if (elim) return tavoloElim(t, n, k, tb, res, miaQui, adm);
     return `<section class="card ${miaQui ? 'mia' : ''}"><div class="testa ${c ? 'verde' : 'gialla'}"><span class="riga"><span class="numtav num">${String(k).padStart(2, '0')}</span><span class="etichetta">Tavolo${miaQui ? ' - il tuo' : ''}</span></span>
         <span class="badge ${c ? 'blu' : 'giallo'}">${c ? 'Risultato inserito' : 'In attesa'}</span></div>
       <div class="corpo"><div class="vs-riga"><div><div class="chi">${nomeCoppia(tb.a)}${sottoNomi(tb.a, 'div')}<span class="vs">VS</span>${nomeCoppia(tb.b)}${sottoNomi(tb.b, 'div')}</div>
@@ -565,7 +609,41 @@ function vistaTurno() {
       <span class="s">${mancanti ? `Mancano ${mancanti} risultati` : n >= t.config.turni ? 'La classifica diventa definitiva' : `Genera gli abbinamenti del turno ${n + 1}`}</span></span></button>` : ''}`;
 }
 
+// Tavolo del torneo a eliminazione: fase, coppie, punti e chi va avanti.
+function tavoloElim(t, n, k, tb, res, miaQui, adm) {
+  const w = E.vincitore(res);
+  const fase = E.etichettaTavolo(t, n, k);
+  const lato = (id, l) => `<div class="elim-lato ${w === l ? 'vince' : w ? 'perde' : ''}"><span class="cresce"><span class="nome-c">${nomeCoppia(id)}</span>${sottoNomi(id, 'div')}</span>
+    <span class="punti num">${res ? fmtN(res[l]) : '-'}</span></div>`;
+  return `<section class="card ${miaQui ? 'mia' : ''}"><div class="testa ${res ? 'verde' : 'gialla'}"><span class="riga"><span class="numtav num">${String(k).padStart(2, '0')}</span><span class="etichetta">${esc(fase)}${miaQui ? ' - il tuo' : ''}</span></span>
+      <span class="badge ${res ? 'blu' : 'giallo'}">${res ? 'Risultato inserito' : 'In attesa'}</span></div>
+    <div class="corpo">${lato(tb.a, 'a')}<span class="vs" style="align-self:flex-start">VS</span>${lato(tb.b, 'b')}
+      ${res && res.a === res.b ? `<p class="testo-s" style="margin:0">Pari punti: ${nomeCoppia(w === 'a' ? tb.a : tb.b)} ha vinto la mano di spareggio.</p>` : ''}
+      ${adm ? `<button class="btn ${res ? '' : 'giallo'} piccolo blocco-w" data-azione="apri-risultato" data-tav="${k}">${res ? `${ICONE.matita} Correggi risultato` : `${ICONE.piu} Inserisci risultato`}</button>` : ''}</div></section>`;
+}
+
 // ---------- Classifica ----------
+function tabellaElim(cl, fine) {
+  const mia = miaCoppia();
+  return `<table class="classifica num"><thead><tr><th style="text-align:center">#</th><th>Coppia</th><th>V-P</th><th>Punti</th></tr></thead><tbody>
+    ${cl.map((r) => `<tr class="${fine && r.pos === 1 ? 'primo' : ''} ${mia === r.id ? 'mia' : ''}">
+      <td class="pos">${fine ? r.pos : ''}</td>
+      <td><strong>${nomeCoppia(r.id)}</strong>${sottoNomi(r.id)}${r.ripescata ? `<small>Ripescata al turno ${r.ripescata}</small>` : ''}</td>
+      <td>${r.vinte}-${r.perse}</td><td class="vp">${fmtN(r.fatti)}</td></tr>`).join('')}
+    </tbody></table>`;
+}
+
+function vistaClassificaElim(t) {
+  const chiusi = E.turniChiusi(t);
+  if (!chiusi.length) return card({ testa: 'Classifica', testaCls: 'gialla', corpo: `<div class="riga"><span class="mini-omino">${OMINO}</span><p>La classifica compare dopo la chiusura del primo turno.</p></div>` });
+  const cl = E.classificaEliminazione(t);
+  const mia = miaCoppia();
+  const fine = t.status === 'finished';
+  return `<div class="sezione"><h2>Classifica</h2><span class="badge ${fine ? 'giallo' : 'chiaro'}">${fine ? 'Finale' : `Dopo il turno ${chiusi[chiusi.length - 1]}`}</span></div>
+    ${tabellaElim(cl, fine)}
+    <p class="muto testo-s">${fine ? 'Le posizioni vengono dalle finali.' : 'Ordine provvisorio: prima chi ha vinto di più nel tabellone, poi i punti fatti. Le posizioni definitive escono dalle finali.'} V-P = partite vinte e perse. Punti = punti fatti in tutto il torneo.</p>`;
+}
+
 function tabellaClassifica(cl) {
   const mia = miaCoppia();
   return `<table class="classifica num"><thead><tr><th style="text-align:center">#</th><th>Coppia</th><th>V.P.</th><th>M.P.</th><th>G</th></tr></thead><tbody>
@@ -578,6 +656,7 @@ function tabellaClassifica(cl) {
 
 function vistaClassifica() {
   const t = S.data;
+  if (E.isElim(t)) return vistaClassificaElim(t);
   const chiusi = E.turniChiusi(t);
   if (!chiusi.length) return card({ testa: 'Classifica', testaCls: 'gialla', corpo: `<div class="riga"><span class="mini-omino">${OMINO}</span><p>La classifica compare dopo la chiusura del primo turno.</p></div>` });
   const ult = chiusi[chiusi.length - 1];
@@ -593,14 +672,15 @@ function vistaClassifica() {
 
 // ---------- Finale ----------
 function vistaFinale() {
-  const cl = E.classifica(S.data);
+  const elim = E.isElim(S.data);
+  const cl = elim ? E.classificaEliminazione(S.data) : E.classifica(S.data);
   const podio = [cl[1], cl[0], cl[2]];
-  const g = (r, cls, posto) => (r ? `<div class="gradino ${cls}"><span class="posto">${posto}</span><strong class="chi">${nomeCoppia(r.id)}</strong>${sottoNomi(r.id, 'span')}<span class="num"><strong>${r.vp}</strong> V.P.</span></div>` : '<div></div>');
+  const g = (r, cls, posto) => (r ? `<div class="gradino ${cls}"><span class="posto">${posto}</span><strong class="chi">${nomeCoppia(r.id)}</strong>${sottoNomi(r.id, 'span')}<span class="num">${elim ? `<strong>${fmtN(r.fatti)}</strong> punti` : `<strong>${r.vp}</strong> V.P.`}</span></div>` : '<div></div>');
   return `<section class="hero"><div class="arte"><div class="diag"></div><div class="rossa"></div>${OMINO}</div>
       <div class="testo"><span class="badge rosso" style="align-self:flex-start">Classifica finale</span><h2 class="titolo-m">Torneo<br><span class="rosso-t">concluso</span></h2></div>
       <div class="piede"><span>${SEME.cuori}Cuori</span><span>${SEME.quadri}Quadri</span></div><div class="angolo"></div></section>
     <div class="podio${podio[2] ? "" : " due"}">${g(podio[0], 'g2', '2°')}${g(podio[1], 'g1', '1°')}${g(podio[2], 'g3', '3°')}</div>
-    ${tabellaClassifica(cl)}
+    ${elim ? tabellaElim(cl, true) : tabellaClassifica(cl)}
     <div class="griglia-2"><button class="btn giallo" data-azione="condividi-classifica">${ICONE.condividi} Condividi</button>
       <button class="btn" data-azione="esporta">${ICONE.scarica} Esporta</button></div>`;
 }
@@ -616,10 +696,18 @@ function vistaStorico() {
   const sm = t.config.smazzate;
   const turni = Object.values(t.rounds).sort((a, b) => b.n - a.n);
   const nomeMembro = (uid) => esc(S.members[uid]?.name || '');
-  return hero + seg + (turni.length ? turni.map((r) => card({ testa: `Turno ${r.n} - ${SISTEMI[t.config.sistema].nome}`, testaCls: r.closed ? '' : 'rossa',
+  const elim = E.isElim(t);
+  return hero + seg + (turni.length ? turni.map((r) => card({ testa: `Turno ${r.n} - ${elim ? 'Eliminazione' : SISTEMI[t.config.sistema].nome}`, testaCls: r.closed ? '' : 'rossa',
     destra: `<span class="badge ${r.closed ? 'chiaro' : 'giallo'}">${r.closed ? 'Chiuso' : 'In corso'}</span>`, corpo: `
     ${Object.entries(r.tables).sort((a, b) => a[0] - b[0]).map(([k, tb]) => {
       const res = r.results[k];
+      if (elim) {
+        const w = E.vincitore(res);
+        const mani = res && res.mani ? res.mani.a.map((x, i) => `${fmtN(x)}-${fmtN(res.mani.b[i])}`).join(', ') : '';
+        return `<div style="border-top:2px solid var(--crema-2);padding-top:12px" class="colonna"><span class="etichetta">Tavolo ${k} - ${esc(E.etichettaTavolo(t, r.n, k))}</span>
+          <div class="chi" style="font-weight:700">${nomeCoppia(tb.a)} <span class="vs">VS</span> ${nomeCoppia(tb.b)}</div>
+          <div class="nomi num muto testo-s">${res ? `Punti ${fmtN(res.a)} - ${fmtN(res.b)}${mani ? ` (partite: ${mani})` : ''}<br>Vince ${nomeCoppia(w === 'a' ? tb.a : tb.b)}${res.a === res.b ? ' alla mano di spareggio' : ''}` : 'Risultato non ancora inserito'}${res && res.by ? `<br>Inserito da ${nomeMembro(res.by)}` : ''}</div></div>`;
+      }
       const c = res ? E.calcolaPartita(res.a, res.b, sm) : null;
       return `<div class="vs-riga" style="border-top:2px solid var(--crema-2);padding-top:12px"><div><div class="chi">${nomeCoppia(tb.a)}<span class="vs">VS</span>${nomeCoppia(tb.b)}</div>
         <div class="nomi num">Tavolo ${k}${c ? ` - punti ${fmtN(res.a)} - ${fmtN(res.b)} - M.P. ${fmt(c.mpA)}` : ''}${res && res.by ? `<br>Inserito da ${nomeMembro(res.by)}` : ''}</div></div>
@@ -633,6 +721,12 @@ function vistaStorico() {
 
 function vistaRegolamento() {
   const c = S.data.config;
+  if (c.formato === 'eliminazione') return card({ testa: 'Questo torneo: eliminazione', testaCls: 'rossa', corpo: `
+      <p style="margin:0"><strong>Al tavolo</strong> si gioca per ${E.durataTurnoMin(c)} minuti. Allo scadere non si inizia una nuova partita: si finisce quella in corso. Si sommano i punti di tutte le partite giocate e vince la coppia che ne ha fatti di più.</p>
+      <p style="margin:0"><strong>Pari punti:</strong> si gioca una mano di spareggio e chi la vince passa.</p>
+      <p style="margin:0"><strong>Tabellone:</strong> il primo turno è a sorte. Poi chi ha vinto gioca contro chi ha vinto e chi ha perso contro chi ha perso, fino alle finali: 1° e 2° posto tra chi vince le semifinali, 3° e 4° tra chi le perde, e così via per tutti i posti. Tutti giocano ogni turno.</p>
+      <p style="margin:0"><strong>Ripescaggio:</strong> se in un gruppo le coppie sono dispari, entra la coppia del gruppo sotto con più punti fatti in tutto il torneo.</p>
+      <p class="muto testo-s" style="margin:0">Formato della serata tra amici, non del regolamento FIBur.</p>` });
   const tab = TABELLE_VP[c.smazzate];
   let prec = -5;
   return `
@@ -711,7 +805,7 @@ function vistaAltro() {
           <div class="griglia-2"><button class="btn piccolo" data-azione="apri-rinomina" data-pid="${pid}">${ICONE.matita} Rinomina</button>
           ${attiva ? `<button class="btn piccolo giallo" data-azione="apri-sostituisci" data-id="${id}" data-pid="${pid}">${ICONE.utenti} Sostituisci</button>` : '<span></span>'}</div></div>`).join('')}
         <div class="griglia-2"><button class="btn piccolo" data-azione="apri-soprannome" data-id="${id}">${p.nick ? 'Soprannome' : 'Dai un soprannome'}</button>
-        ${attiva ? `<button class="btn piccolo primario" data-azione="apri-ritiro" data-id="${id}">Ritira la coppia</button>` : '<span></span>'}</div>
+        ${attiva && !E.isElim(t) ? `<button class="btn piccolo primario" data-azione="apri-ritiro" data-id="${id}">Ritira la coppia</button>` : '<span></span>'}</div>
       </div></section>`;
     }).join('')}</div>
     <p class="muto testo-s">Sostituzione: secondo il codice di gara è ammessa una sola volta per coppia, ed è consentito solo il ritorno del giocatore titolare. Ritiro: i risultati giocati restano validi, chi doveva incontrare la coppia riceve il riposo.</p>` : ''}
@@ -755,6 +849,24 @@ function renderFoglio() {
     c = `<h2 class="titolo">Entra con codice</h2>
       <div class="campo"><label for="entra-codice">Codice invito</label><input id="entra-codice" class="input grande" maxlength="7" placeholder="SB-XXXX" autocapitalize="characters" autocomplete="off" value="${esc(f.codice || '')}"></div>
       <button class="btn primario blocco-w" data-azione="entra">Entra ${ICONE.freccia}</button>`;
+  } else if (f.tipo === 'risultato' && E.isElim(S.data)) {
+    const r = S.data.rounds[f.turno];
+    const tb = r.tables[f.tav];
+    if (!f.mani) {
+      const res = r.results[f.tav];
+      f.mani = res && res.mani ? { a: res.mani.a.map(String), b: res.mani.b.map(String) } : res ? { a: [String(res.a)], b: [String(res.b)] } : { a: ['', '', ''], b: ['', '', ''] };
+      f.spareggio = res && res.spareggio ? res.spareggio : null;
+    }
+    const cella = (l, i) => `<div class="mano-cella"><input class="input num mano" data-lato="${l}" data-i="${i}" inputmode="numeric" pattern="-?[0-9]*" value="${esc(f.mani[l][i])}" placeholder="0" aria-label="${esc(testoCoppia(tb[l]))}, partita ${i + 1}"><button class="segno" data-azione="segno" data-lato="${l}" data-i="${i}" aria-label="Cambia segno">+/-</button></div>`;
+    c = `<h2 class="titolo">Tavolo ${f.tav} - Turno ${f.turno}</h2>
+      <span class="etichetta blu-t">${esc(E.etichettaTavolo(S.data, f.turno, f.tav))}</span>
+      <p class="testo-s" style="margin:0">Scrivi i punti di ogni partita giocata al tavolo: l'app fa la somma.</p>
+      <div class="mani"><div class="mani-intest"><span></span><strong>${nomeCoppia(tb.a)}</strong><strong>${nomeCoppia(tb.b)}</strong></div>
+        ${f.mani.a.map((_, i) => `<div class="mani-riga"><span class="etichetta">${i + 1}ª</span>${cella('a', i)}${cella('b', i)}</div>`).join('')}
+        <div class="mani-riga totale"><span class="etichetta">Tot.</span><input id="ris-a" class="input num" readonly tabindex="-1"><input id="ris-b" class="input num" readonly tabindex="-1"></div></div>
+      <button class="btn piccolo" data-azione="aggiungi-partita">${ICONE.piu} Aggiungi partita</button>
+      <div class="card gialla"><div class="corpo" id="anteprima"></div></div>
+      <div class="griglia-2"><button class="btn" data-azione="chiudi-foglio">Annulla</button><button class="btn primario" data-azione="salva-risultato">Salva</button></div>`;
   } else if (f.tipo === 'risultato') {
     const r = S.data.rounds[f.turno];
     const tb = r.tables[f.tav];
@@ -815,11 +927,40 @@ function leggiNumero(v) {
   return Number.isFinite(n) ? Math.round(n) : NaN;
 }
 
+function totaliMani(f) {
+  const tot = { a: 0, b: 0 }; let righe = 0;
+  f.mani.a.forEach((_, i) => {
+    const x = leggiNumero(f.mani.a[i]); const y = leggiNumero(f.mani.b[i]);
+    if ((x === null || Number.isNaN(x)) && (y === null || Number.isNaN(y))) return;
+    righe++;
+    tot.a += Number.isFinite(x) ? x : 0; tot.b += Number.isFinite(y) ? y : 0;
+  });
+  return { ...tot, righe };
+}
+
+function anteprimaElim(el, f, tb) {
+  const t = totaliMani(f);
+  document.getElementById('ris-a').value = t.righe ? fmtN(t.a) : '';
+  document.getElementById('ris-b').value = t.righe ? fmtN(t.b) : '';
+  if (!t.righe) { el.innerHTML = '<p style="margin:0">Inserisci i punti delle partite per vedere chi vince.</p>'; return; }
+  const multipli = [...f.mani.a, ...f.mani.b].every((v) => { const n = leggiNumero(v); return n === null || Number.isNaN(n) || n % 5 === 0; });
+  const att = multipli ? '' : '<p style="margin:0"><strong>Attenzione:</strong> qualche punteggio non è multiplo di 5. Controlla.</p>';
+  if (t.a === t.b) {
+    el.innerHTML = `<p class="etichetta" style="color:var(--ink);margin:0">Pari punti: ${fmtN(t.a)} a ${fmtN(t.b)}</p>
+      <p style="margin:0">Si gioca una mano di spareggio. Chi l'ha vinta?</p>
+      <div class="segmenti"><button class="${f.spareggio === 'a' ? 'attivo' : ''}" data-azione="spareggio" data-v="a">${nomeCoppia(tb.a)}</button><button class="${f.spareggio === 'b' ? 'attivo' : ''}" data-azione="spareggio" data-v="b">${nomeCoppia(tb.b)}</button></div>${att}`;
+    return;
+  }
+  const w = t.a > t.b ? tb.a : tb.b;
+  el.innerHTML = `<p class="etichetta" style="color:var(--ink);margin:0">Anteprima</p><p style="margin:0">Vince <strong>${nomeCoppia(w)}</strong> di ${fmtN(Math.abs(t.a - t.b))} punti.</p>${att}`;
+}
+
 function aggiornaAnteprima() {
   const el = document.getElementById('anteprima');
   if (!el) return;
   const f = S.sheet;
   const tb = S.data.rounds[f.turno].tables[f.tav];
+  if (E.isElim(S.data) && f.mani) return anteprimaElim(el, f, tb);
   const a = leggiNumero(document.getElementById('ris-a').value);
   const b = leggiNumero(document.getElementById('ris-b').value);
   if (a === null || b === null || Number.isNaN(a) || Number.isNaN(b)) { el.innerHTML = '<p>Inserisci i punti delle due coppie per vedere M.P. e V.P.</p>'; return; }
@@ -967,7 +1108,7 @@ const azioni = {
 
   cfg(el) {
     const k = el.dataset.k; let v = el.dataset.v;
-    if (k !== 'sistema') v = Number(v);
+    if (k !== 'sistema' && k !== 'formato') v = Number(v);
     const t = { ...S.data, config: { ...S.data.config, [k]: v } };
     salva(t);
   },
@@ -980,6 +1121,10 @@ const azioni = {
     S.setupTab = 'giocatori';
     render();
     window.scrollTo(0, 0);
+  },
+  minuti(el) {
+    const m = Math.max(10, Math.min(120, (S.data.config.minuti || 45) + Number(el.dataset.d)));
+    salva({ ...S.data, config: { ...S.data.config, minuti: m } });
   },
   turni(el) {
     const n = Math.max(1, Math.min(20, S.data.config.turni + Number(el.dataset.d)));
@@ -1078,8 +1223,33 @@ const azioni = {
 
   'apri-risultato'(el) { apriFoglio('risultato', { turno: E.turnoCorrente(S.data), tav: el.dataset.tav, dettaglio: false }); },
   'dettaglio-smazzate'() { S.sheet.dettaglio = !S.sheet.dettaglio; const a = val('ris-a'); const b = val('ris-b'); renderFoglio(); document.getElementById('ris-a').value = a; document.getElementById('ris-b').value = b; aggiornaAnteprima(); },
+  'aggiungi-partita'() { S.sheet.mani.a.push(''); S.sheet.mani.b.push(''); renderFoglio(); aggiornaAnteprima(); },
+  segno(el) {
+    const f = S.sheet; const { lato, i } = el.dataset;
+    const v = String(f.mani[lato][i] || '').trim();
+    f.mani[lato][i] = v.startsWith('-') ? v.slice(1) : v ? `-${v}` : '-';
+    const inp = document.querySelector(`.mano[data-lato="${lato}"][data-i="${i}"]`);
+    if (inp) { inp.value = f.mani[lato][i]; inp.focus(); }
+    aggiornaAnteprima();
+  },
+  spareggio(el) { S.sheet.spareggio = el.dataset.v; aggiornaAnteprima(); },
   'salva-risultato'() {
     const f = S.sheet;
+    if (E.isElim(S.data) && f.mani) {
+      const r = S.data.rounds[f.turno];
+      if (r.closed) return toast('Il turno è già chiuso.');
+      const righe = f.mani.a.map((_, i) => [leggiNumero(f.mani.a[i]), leggiNumero(f.mani.b[i])])
+        .filter(([x, y]) => !((x === null || Number.isNaN(x)) && (y === null || Number.isNaN(y))));
+      if (!righe.length) return toast('Inserisci i punti di almeno una partita.');
+      if (righe.some(([x, y]) => Number.isNaN(x) || Number.isNaN(y))) return toast('C\'è un punteggio non valido: usa solo numeri.');
+      const mani = { a: righe.map(([x]) => x ?? 0), b: righe.map(([, y]) => y ?? 0) };
+      const a = mani.a.reduce((x, y) => x + y, 0); const b = mani.b.reduce((x, y) => x + y, 0);
+      if (a === b && !f.spareggio) return toast('Pari punti: indica chi ha vinto la mano di spareggio.');
+      const ris = { a, b, mani, by: S.user.uid, at: S.store.now() };
+      if (a === b) ris.spareggio = f.spareggio;
+      chiudiFoglio();
+      return salva({ ...S.data, rounds: { ...S.data.rounds, [f.turno]: { ...r, results: { ...r.results, [f.tav]: ris } } } });
+    }
     const a = leggiNumero(val('ris-a')); const b = leggiNumero(val('ris-b'));
     if (a === null || b === null || Number.isNaN(a) || Number.isNaN(b)) return toast('Inserisci i punti di entrambe le coppie.');
     const r = S.data.rounds[f.turno];
@@ -1168,8 +1338,9 @@ const azioni = {
     if (navigator.share) { try { await navigator.share({ title: 'Sorelle Burraco', text: testo, url: link }); } catch (e) { /* annullato */ } } else azioni['copia-codice']();
   },
   async 'condividi-classifica'() {
-    const cl = E.classifica(S.data);
-    const testo = `${S.meta.name} - classifica finale\n` + cl.map((r) => `${r.pos}. ${testoCoppia(r.id)} ${r.vp} V.P., ${fmt(r.mp)} M.P.`).join('\n');
+    const elim = E.isElim(S.data);
+    const cl = elim ? E.classificaEliminazione(S.data) : E.classifica(S.data);
+    const testo = `${S.meta.name} - classifica finale\n` + cl.map((r) => (elim ? `${r.pos}. ${testoCoppia(r.id)} - ${r.vinte} vinte, ${fmtN(r.fatti)} punti` : `${r.pos}. ${testoCoppia(r.id)} ${r.vp} V.P., ${fmt(r.mp)} M.P.`)).join('\n');
     if (navigator.share) { try { await navigator.share({ title: S.meta.name, text: testo }); } catch (e) { /* annullato */ } }
     else { try { await navigator.clipboard.writeText(testo); toast('Classifica copiata.'); } catch (e) { toast('Impossibile condividere da questo browser.'); } }
   },
@@ -1254,6 +1425,9 @@ document.addEventListener('change', (ev) => {
 document.addEventListener('input', (ev) => {
   if (ev.target.id === 'cfg-ora') { aggiornaDurata(); return; }
   if (!S.sheet || S.sheet.tipo !== 'risultato') return;
+  if (ev.target.classList.contains('mano') && S.sheet.mani) {
+    S.sheet.mani[ev.target.dataset.lato][Number(ev.target.dataset.i)] = ev.target.value;
+  }
   if (ev.target.classList.contains('smz')) {
     for (const lato of ['a', 'b']) {
       const vals = [...document.querySelectorAll(`.smz[data-lato="${lato}"]`)].map((i) => leggiNumero(i.value)).filter((x) => x !== null && !Number.isNaN(x));

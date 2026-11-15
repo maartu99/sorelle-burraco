@@ -64,6 +64,7 @@ export function calcolaPartita(puntiA, puntiB, smazzate) {
 }
 
 export function durataTurnoMin(config) {
+  if (config.formato === 'eliminazione') return config.minuti || 45;
   return TEMPI[config.smazzate] - (config.riduzione || 0);
 }
 
@@ -73,6 +74,7 @@ export function nuovoTorneo() {
   return {
     status: 'setup',
     config: {
+      formato: 'punti', minuti: 45,
       smazzate: 4, turni: 4, sistema: 'danese_mod', riduzione: 0,
       data: '', inizio: '21:00', spiegazione: 15, cambio: 5, premiazione: 10,
     },
@@ -376,6 +378,7 @@ function accoppiaInOrdine(lista, vietati) {
 
 // Restituisce { tables: {1:{a,b}}, byes: {id: motivo}, avvisi: [] }
 export function generaTurno(t, turno) {
+  if (isElim(t)) return generaTurnoEliminazione(t, turno);
   const sistema = t.config.sistema;
   const avvisi = [];
   const tables = {};
@@ -477,6 +480,10 @@ export function verificaAvvio(t) {
   const n = t.order.length;
   const errori = [];
   if (n < 2) errori.push('Servono almeno 2 coppie.');
+  if (isElim(t)) {
+    if (n % 2 === 1) errori.push('Per l\'eliminazione serve un numero pari di coppie.');
+    return errori;
+  }
   const max = maxTurni(t.config.sistema, n);
   if (t.config.turni < 1) errori.push('Serve almeno un turno.');
   if (t.config.turni > max) errori.push(`Con ${n} coppie e il sistema ${SISTEMI[t.config.sistema].nome} si possono fare al massimo ${max} turni.`);
@@ -501,6 +508,7 @@ export function avviaTorneo(t) {
   if (giocatoriDoppi(t).length) throw new Error('Un giocatore è in più di una coppia: correggi le coppie prima di avviare.');
   const errori = verificaAvvio(t);
   if (errori.length) throw new Error(errori.join(' '));
+  if (isElim(t)) t = { ...t, config: { ...t.config, turni: turniEliminazione(t.order.length) } };
   const g = generaTurno(t, 1);
   return {
     ...t,
@@ -533,6 +541,7 @@ export function chiudiTurno(t) {
 
 // Ritiro di una coppia a torneo iniziato: non gioca più dal turno indicato.
 export function ritiraCoppia(t, id) {
+  if (isElim(t)) throw new Error('Nel torneo a eliminazione non si può ritirare una coppia: si può sostituire un giocatore con una riserva.');
   const n = turnoCorrente(t);
   const r = t.rounds[n];
   const pairs = { ...t.pairs, [id]: { ...t.pairs[id], ritiroDalTurno: r && !r.closed ? n : n + 1 } };
@@ -581,4 +590,160 @@ export function tempoResiduoMs(timer, now) {
   if (!timer.startedAt) return timer.durataMs;
   const pausa = (timer.pausedMs || 0) + (timer.pausedAt ? now - timer.pausedAt : 0);
   return timer.durataMs - (now - timer.startedAt - pausa);
+}
+
+// ================= Formato a eliminazione =================
+// Ogni turno tutti giocano. Chi vince va avanti nel tabellone alto, chi perde continua a giocare
+// per i posti più bassi (come nel calcio: semifinali, finale, finale per il 3° posto, ...).
+// Vince la partita chi fa più punti in totale al tavolo; a pari punti si gioca una mano di
+// spareggio e l'admin indica chi l'ha vinta. Se un gruppo resta dispari, si ripesca dal gruppo
+// subito sotto la coppia con più punti fatti in tutto il torneo.
+
+export const isElim = (t) => t && t.config && t.config.formato === 'eliminazione';
+
+export function turniEliminazione(n) {
+  return n < 2 ? 0 : Math.ceil(Math.log2(n));
+}
+
+// 'a' o 'b' (chi ha vinto il tavolo) oppure null se manca il risultato o lo spareggio.
+export function vincitore(res) {
+  if (!res) return null;
+  if (res.a > res.b) return 'a';
+  if (res.b > res.a) return 'b';
+  return res.spareggio === 'a' || res.spareggio === 'b' ? res.spareggio : null;
+}
+
+// Ordine dei gruppi: chi ha vinto (V) sta sopra chi ha perso (P), turno per turno.
+const chiaveOrd = (k) => k.replace(/V/g, '0').replace(/P/g, '1');
+const ordinaGruppi = (keys) => keys.slice().sort((x, y) => (chiaveOrd(x) < chiaveOrd(y) ? -1 : chiaveOrd(x) > chiaveOrd(y) ? 1 : 0));
+
+function turniChiusiFino(t, finoAlTurno) {
+  return Object.values(t.rounds).filter((r) => r.closed && (!finoAlTurno || r.n <= finoAlTurno)).sort((a, b) => a.n - b.n);
+}
+
+export function statisticheElim(t, finoAlTurno) {
+  const s = {};
+  for (const id of t.order) s[id] = { id, fatti: 0, subiti: 0, vinte: 0, perse: 0, partite: [] };
+  for (const r of turniChiusiFino(t, finoAlTurno)) {
+    for (const [tav, tb] of Object.entries(r.tables)) {
+      const res = r.results[tav];
+      if (!res) continue;
+      const w = vincitore(res);
+      for (const [me, av, mio, suo, lato] of [[tb.a, tb.b, res.a, res.b, 'a'], [tb.b, tb.a, res.b, res.a, 'b']]) {
+        if (!s[me]) continue;
+        s[me].fatti += mio; s[me].subiti += suo;
+        if (w === lato) s[me].vinte++; else s[me].perse++;
+        s[me].partite.push({ turno: r.n, avv: av, fatti: mio, subiti: suo, vinta: w === lato });
+      }
+    }
+  }
+  return s;
+}
+
+// Migliore per punti: punti fatti, poi differenza, poi sorteggio fisso con il seme del torneo.
+function migliori(ids, st, seed) {
+  return ids.slice().sort((x, y) => (st[y].fatti - st[x].fatti)
+    || ((st[y].fatti - st[y].subiti) - (st[x].fatti - st[x].subiti))
+    || (hashStr(`${seed}:${y}`) - hashStr(`${seed}:${x}`)));
+}
+
+// Gruppi del tabellone dopo i turni chiusi fino a finoAlTurno.
+// Restituisce { gruppi: [[chiave, [ids]]], ripescate: { id: turno } }.
+export function gruppiEliminazione(t, finoAlTurno) {
+  const st = statisticheElim(t, finoAlTurno);
+  const di = {};
+  for (const id of t.order) di[id] = '';
+  const ripescate = {};
+  for (const r of turniChiusiFino(t, finoAlTurno)) {
+    const nuovo = new Map();
+    const metti = (k, id) => { if (!nuovo.has(k)) nuovo.set(k, []); nuovo.get(k).push(id); };
+    for (const [tav, tb] of Object.entries(r.tables)) {
+      const w = vincitore(r.results[tav]);
+      const base = di[tb.a] ?? '';
+      metti(base + 'V', w === 'b' ? tb.b : tb.a);
+      metti(base + 'P', w === 'b' ? tb.a : tb.b);
+    }
+    for (const id of Object.keys(r.byes || {})) metti((di[id] ?? '') + 'V', id);
+    // Ripescaggio: un gruppo dispari prende la migliore del gruppo subito sotto.
+    // Dopo l'ultimo turno non serve: i gruppi danno solo le posizioni finali.
+    const keys = ordinaGruppi([...nuovo.keys()]);
+    const altroTurno = r.n < (t.config.turni || 0);
+    for (let i = 0; altroTurno && i < keys.length - 1; i++) {
+      const g = nuovo.get(keys[i]);
+      if (g.length % 2 === 0) continue;
+      const sotto = nuovo.get(keys[i + 1]);
+      if (!sotto.length) continue;
+      const best = migliori(sotto, st, t.seed)[0];
+      sotto.splice(sotto.indexOf(best), 1);
+      g.push(best);
+      ripescate[best] = r.n + 1;
+    }
+    for (const k of keys) for (const id of nuovo.get(k)) di[id] = k;
+  }
+  const mappa = new Map();
+  for (const id of t.order) { if (!mappa.has(di[id])) mappa.set(di[id], []); mappa.get(di[id]).push(id); }
+  const gruppi = ordinaGruppi([...mappa.keys()]).map((k) => [k, migliori(mappa.get(k), st, t.seed)]);
+  return { gruppi, ripescate, st };
+}
+
+// Accoppia dentro un gruppo: prima contro ultima (1-4, 2-3), evitando chi si è già incontrato.
+function accoppiaPiega(lista, giocate) {
+  if (!lista.length) return [];
+  const [primo, ...resto] = lista;
+  for (let i = resto.length - 1; i >= 0; i--) {
+    if (giocate && giocate.has(`${primo}|${resto[i]}`)) continue;
+    const sotto = accoppiaPiega(resto.filter((_, k) => k !== i), giocate);
+    if (sotto) return [[primo, resto[i]], ...sotto];
+  }
+  return null;
+}
+
+function generaTurnoEliminazione(t, turno) {
+  const tables = {};
+  const avvisi = [];
+  let coppie = [];
+  if (turno === 1) {
+    const ord = mescola(t.order, rng(t.seed));
+    for (let i = 0; i + 1 < ord.length; i += 2) coppie.push([ord[i], ord[i + 1], '']);
+  } else {
+    const giocate = new Set();
+    for (const r of Object.values(t.rounds)) for (const tb of Object.values(r.tables)) { giocate.add(`${tb.a}|${tb.b}`); giocate.add(`${tb.b}|${tb.a}`); }
+    const { gruppi } = gruppiEliminazione(t, turno - 1);
+    for (const [k, ids] of gruppi) {
+      let acc = accoppiaPiega(ids, giocate);
+      if (!acc) { acc = accoppiaPiega(ids, null); avvisi.push('Due coppie si incontrano di nuovo: non c\'era altro modo.'); }
+      coppie.push(...acc.map(([a, b]) => [a, b, k]));
+    }
+  }
+  coppie.forEach(([a, b, g], i) => { tables[i + 1] = { a, b, g }; });
+  return { tables, byes: {}, avvisi };
+}
+
+// Classifica del torneo a eliminazione: posizione nel tabellone, poi punti fatti.
+export function classificaEliminazione(t, finoAlTurno) {
+  const { gruppi, ripescate, st } = gruppiEliminazione(t, finoAlTurno);
+  const out = [];
+  for (const [k, ids] of gruppi) for (const id of ids) out.push({ ...st[id], gruppo: k, ripescata: ripescate[id] || null });
+  return out.map((r, i) => ({ ...r, pos: i + 1, diff: r.fatti - r.subiti }));
+}
+
+// Nome di un tavolo: "Semifinale", "Finale 1° e 2° posto", "Per il 5°-8° posto", ...
+export function etichettaTavolo(t, turno, tav) {
+  const r = t.rounds[turno];
+  if (!isElim(t) || !r || !r.tables[tav]) return '';
+  const g = r.tables[tav].g || '';
+  const conta = {};
+  for (const tb of Object.values(r.tables)) conta[tb.g || ''] = (conta[tb.g || ''] || 0) + 2;
+  let pos = 1;
+  for (const k of ordinaGruppi(Object.keys(conta))) { if (k === g) break; pos += conta[k]; }
+  const n = conta[g];
+  const ultimo = turno >= t.config.turni;
+  if (n === 2 && ultimo) return pos === 1 ? 'Finale 1° e 2° posto' : `Finale ${pos}° e ${pos + 1}° posto`;
+  if (pos === 1 && !g.includes('P')) {
+    if (turno === 1) return n === 2 ? 'Finale' : 'Primo turno';
+    if (n === 4) return 'Semifinale';
+    if (n === 8) return 'Quarti di finale';
+  }
+  if (turno === 1) return 'Primo turno';
+  return `Per il ${pos}°-${pos + n - 1}° posto`;
 }

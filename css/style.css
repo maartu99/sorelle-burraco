@@ -362,3 +362,19 @@ select.input { background-image: linear-gradient(45deg, transparent 50%, var(--i
 .temi button { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 0; border: var(--b2); background: var(--carta); font-family: 'Anybody'; font-weight: 800; font-size: clamp(7.5px, 2.2vw, 10px); letter-spacing: -.01em; text-transform: uppercase; color: var(--ink); min-width: 0; }
 .temi button.attivo { box-shadow: var(--ombra-s); background: var(--giallo-chiaro); }
 .temi .pallino { width: 30px; height: 30px; border: var(--b2); border-radius: 50%; display: block; }
+
+/* Torneo a eliminazione: punti partita per partita e tavoli */
+.mani { display: flex; flex-direction: column; gap: 8px; }
+.mani-intest, .mani-riga { display: grid; grid-template-columns: 34px minmax(0, 1fr) minmax(0, 1fr); gap: 8px; align-items: center; }
+.mani-intest strong { font-size: 13px; line-height: 1.2; overflow-wrap: anywhere; }
+.mani-riga .input { min-width: 0; width: 100%; text-align: right; }
+.mani-riga.totale .input { background: var(--crema); font-weight: 800; }
+.mano-cella { display: flex; gap: 4px; min-width: 0; }
+.mano-cella .input { flex: 1; }
+.segno { flex: none; width: 34px; border: var(--b2); background: var(--carta); font-family: 'Anybody'; font-weight: 800; font-size: 11px; color: var(--ink); padding: 0; }
+.elim-lato { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
+.elim-lato .nome-c { font-weight: 700; font-size: 16px; line-height: 1.25; display: block; }
+.elim-lato .punti { font-family: 'Syne'; font-weight: 800; font-size: 22px; min-width: 70px; text-align: right; }
+.elim-lato.vince .punti { color: var(--verde); }
+.elim-lato.vince .nome-c::after { content: ' - vince'; font-family: 'Anybody'; font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--verde); }
+.elim-lato.perde { opacity: .6; }
