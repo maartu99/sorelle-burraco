@@ -1,7 +1,7 @@
-import * as E from './engine.js?v=17';
-import { TEMPI, SISTEMI, TABELLE_VP, RIPOSO, CRITERI_PARITA, FONTI, RIDUZIONE_MAX, SMAZZATE_AMMESSE } from './regolamento.js?v=17';
-import { creaStore, chiaveEmail, emailValida } from './store.js?v=17';
-import { OMINO, MARCHIO, ICONE, GOOGLE, SEMI } from './grafica.js?v=17';
+import * as E from './engine.js?v=18';
+import { TEMPI, SISTEMI, TABELLE_VP, RIPOSO, CRITERI_PARITA, FONTI, RIDUZIONE_MAX, SMAZZATE_AMMESSE } from './regolamento.js?v=18';
+import { creaStore, chiaveEmail, emailValida } from './store.js?v=18';
+import { OMINO, MARCHIO, ICONE, GOOGLE, SEMI } from './grafica.js?v=18';
 
 // ================= Stato =================
 const S = {
@@ -341,6 +341,9 @@ function vistaProfilo() {
         <div class="campo"><label for="profilo-nome">Nome</label><input id="profilo-nome" class="input" maxlength="40" value="${esc(u.name)}" autocomplete="name"></div>
         <button class="btn giallo blocco-w" data-azione="salva-profilo">Salva il nome</button>` })}
       ${S.store.mode === 'prova' ? '' : card({ testa: 'Notifiche', corpo: cartaNotifiche() })}
+      ${card({ testa: 'Sigla', corpo: `
+        <div class="segmenti"><button class="${siglaAttiva() ? 'attivo' : ''}" data-azione="sigla" data-v="on">Sigla on</button><button class="${siglaAttiva() ? '' : 'attivo'}" data-azione="sigla" data-v="off">Sigla off</button></div>
+        <p class="muto testo-s" style="margin:0">La musica parte al primo tocco dopo l'apertura dell'app. Vale solo per te, su questo telefono.</p>` })}
       ${card({ testa: 'Colore dell\'app', corpo: `
         <div class="temi">${TEMI.map(([k, n, g]) => `<button class="${temaAttuale() === k ? 'attivo' : ''}" data-azione="tema" data-v="${k}" aria-label="Colore ${n}"><span class="pallino" style="background:${g}"></span>${n}</button>`).join('')}</div>
         <p class="muto testo-s" style="margin:0">Vale solo per te, su questo telefono.</p>` })}
@@ -1449,6 +1452,12 @@ const azioni = {
     toast(`${players[entra].name} entra al posto di ${t.players[f.pid]?.name}.`);
   },
   tema(el) { applicaTema(el.dataset.v); render(); },
+  sigla(el) {
+    const on = el.dataset.v === 'on';
+    try { localStorage.setItem('sb-sigla', on ? 'on' : 'off'); } catch (e) { /* vale solo per ora */ }
+    if (!on && siglaAudio) { siglaAudio.pause(); siglaAudio.currentTime = 0; }
+    render();
+  },
   'chiudi-foglio'() { chiudiFoglio(); },
   velo(el, ev) { if (ev.target === el) chiudiFoglio(); },
 };
@@ -1574,3 +1583,16 @@ avvio();
 const conTastiera = (el) => el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') && !el.readOnly && !['checkbox', 'radio', 'button'].includes(el.type);
 document.addEventListener('focusin', (ev) => { if (conTastiera(ev.target)) document.body.classList.add('tastiera'); });
 document.addEventListener('focusout', () => { setTimeout(() => { if (!conTastiera(document.activeElement)) document.body.classList.remove('tastiera'); }, 50); });
+
+// Sigla: parte una volta per apertura, al primo tocco (i telefoni non permettono l'audio prima di un tocco).
+let siglaAudio = null; let siglaFatta = false;
+function siglaAttiva() { try { return localStorage.getItem('sb-sigla') !== 'off'; } catch (e) { return true; } }
+function suonaSigla(ev) {
+  if (siglaFatta) return;
+  if (!siglaAttiva() || (ev && ev.target && ev.target.closest && ev.target.closest('[data-azione=sigla]'))) return;
+  siglaFatta = true;
+  siglaAudio = siglaAudio || new Audio('audio/sigla.mp3?v=18');
+  siglaAudio.volume = 0.9;
+  siglaAudio.play().then(() => document.removeEventListener('pointerdown', suonaSigla, true)).catch(() => { siglaFatta = false; });
+}
+document.addEventListener('pointerdown', suonaSigla, true);
