@@ -64,7 +64,7 @@ p { margin: 0; }
 .testata .testi { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .testata .sopra { font-family: 'Anybody'; font-weight: 800; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--rosso); }
 .testata h1 { margin: 0; font-family: 'Syne'; font-weight: 800; font-size: 17px; line-height: 1.1; text-transform: uppercase;
-  overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
+  overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: break-word; }
 .icona-btn { width: 44px; height: 44px; flex: none; display: grid; place-items: center; background: var(--carta); border: var(--b2); padding: 0; }
 .icona-btn.nudo { background: none; border: 0; }
 .icona-btn.avatar { background: var(--blu); color: #fff; font-family: 'Syne'; font-weight: 800; font-size: 18px; box-shadow: 3px 3px 0 var(--ink); }
@@ -124,7 +124,7 @@ p { margin: 0; }
 .tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .tiles.due { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .tile { background: var(--crema); color: var(--ink); border: var(--b2); padding: 10px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.tile .val { font-family: 'Syne'; font-weight: 800; font-size: 24px; line-height: 1; overflow-wrap: anywhere; }
+.tile .val { font-family: 'Syne'; font-weight: 800; font-size: 24px; line-height: 1; overflow-wrap: break-word; }
 .tile .val.medio { font-size: 15px; font-family: 'Space Grotesk'; font-weight: 700; line-height: 1.2; }
 .tile .val small { font-family: 'Anybody'; font-size: 10px; letter-spacing: .08em; }
 .tile.giallo { background: var(--giallo); box-shadow: var(--ombra-s); }
@@ -245,7 +245,7 @@ select.input { background-image: linear-gradient(45deg, transparent 50%, var(--i
 .voce .n.giallo, .persona .n.giallo { background: var(--giallo); color: var(--ink); }
 .voce.spento .n { background: var(--rosso); }
 .voce .cresce { flex: 1; min-width: 0; }
-.voce .nome { font-family: 'Syne'; font-weight: 800; font-size: 15px; text-transform: uppercase; line-height: 1.15; overflow-wrap: anywhere; }
+.voce .nome { font-family: 'Syne'; font-weight: 800; font-size: 15px; text-transform: uppercase; line-height: 1.15; overflow-wrap: break-word; }
 .stato-btn { min-height: 38px; min-width: 104px; padding: 0 10px; border: var(--b2); font-family: 'Anybody'; font-weight: 800; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; box-shadow: 2px 2px 0 var(--ink); background: var(--giallo); }
 .stato-btn[aria-checked="false"] { background: var(--rosso); color: #fff; }
 .stato-btn:disabled { box-shadow: none; opacity: .7; }
@@ -366,7 +366,7 @@ select.input { background-image: linear-gradient(45deg, transparent 50%, var(--i
 /* Torneo a eliminazione: punti partita per partita e tavoli */
 .mani { display: flex; flex-direction: column; gap: 8px; }
 .mani-intest, .mani-riga { display: grid; grid-template-columns: 34px minmax(0, 1fr) minmax(0, 1fr); gap: 8px; align-items: center; }
-.mani-intest strong { font-size: 13px; line-height: 1.2; overflow-wrap: anywhere; }
+.mani-intest strong { font-size: 13px; line-height: 1.2; overflow-wrap: break-word; }
 .mani-riga .input { min-width: 0; width: 100%; text-align: right; }
 .mani-riga.totale .input { background: var(--crema); font-weight: 800; }
 .mano-cella { display: flex; gap: 4px; min-width: 0; }
@@ -416,3 +416,47 @@ body.tastiera .nav { display: none; }
 .tb-partita.futuro { border-style: dashed; box-shadow: none; background: repeating-linear-gradient(135deg, var(--crema) 0 10px, var(--carta) 10px 20px); }
 .tb-partita.futuro .tb-testa { border-bottom-style: dashed; }
 .tb-partita.futuro .tav { background: var(--rosso); }
+
+/* Niente testo fuori dai riquadri, anche sui telefoni stretti (320 px) */
+.tile .etichetta { font-size: clamp(8.5px, 2.6vw, 11px); letter-spacing: .04em; overflow-wrap: break-word; }
+.tiles.orari .tile { padding: 8px; }
+.tiles.orari .val { font-size: clamp(12px, 3.9vw, 17px); }
+.nav button { font-size: clamp(8.5px, 2.6vw, 10px); letter-spacing: .02em; }
+.voce { gap: 8px; }
+.stato-btn { min-width: 0; padding: 0 8px; letter-spacing: .05em; flex: none; }
+.voce .icona-btn { width: 36px; }
+.nome-tocca { display: flex; align-items: center; gap: 6px; background: none; border: 0; padding: 0; text-align: left; color: inherit; font: inherit; font-weight: 700; font-size: 16px; line-height: 1.2; }
+.nome-tocca span { min-width: 0; overflow-wrap: break-word; }
+.nome-tocca svg { width: 14px; height: 14px; flex: none; opacity: .55; }
+.tb-riga .nome { min-width: 0; overflow-wrap: break-word; }
+.tb-riga .pt { flex: none; }
+.riga.spazio > .titolo-m, .riga.spazio > h2, .riga.spazio > h3 { min-width: 0; overflow-wrap: break-word; }
+.timer { font-size: clamp(26px, 9vw, 38px); }
+.tiles.orari .val { font-size: clamp(11px, 3.6vw, 17px); }
+.titolo-m { overflow-wrap: break-word; }
+.sezione { flex-wrap: wrap; }
+.codice-m { font-size: clamp(22px, 8vw, 30px); }
+.btn.piccolo { padding: 0 8px; font-size: clamp(9.5px, 2.8vw, 11px); letter-spacing: .04em; }
+.tb-turno { grid-template-columns: clamp(38px, 11vw, 48px) minmax(0, 1fr); gap: 8px; padding: 0 10px 0 8px; }
+.tb-lista { padding-left: 10px; }
+.tb-partita::before { left: -20px; }
+.tb-riga { flex-wrap: wrap; row-gap: 2px; }
+.tb-riga .nome { flex: 1 1 110px; }
+.btn.piccolo { gap: 6px; } .btn.piccolo svg { width: 16px; height: 16px; }
+.testa { flex-wrap: wrap; row-gap: 6px; }
+/* Le parole non si spezzano a metà: sui telefoni stretti si rimpicciolisce il testo */
+.testata h1 { font-size: clamp(14px, 4.6vw, 17px); }
+.blocco .nome { font-size: clamp(15px, 5vw, 20px); }
+.titolo-m { font-size: clamp(16px, 5.8vw, 22px); }
+.titolo { font-size: clamp(22px, 8vw, 30px); }
+.nome-tocca { font-size: clamp(13px, 4.2vw, 16px); }
+.tile .val.medio { font-size: clamp(12px, 3.8vw, 15px); }
+.voce .nome { font-size: clamp(12px, 4vw, 15px); }
+.voce .n, .persona .n { width: clamp(32px, 10vw, 40px); height: clamp(32px, 10vw, 40px); font-size: clamp(13px, 4.2vw, 17px); }
+.voce .icona-btn { width: clamp(28px, 9vw, 36px); }
+.stato-btn { padding: 0 clamp(5px, 1.8vw, 8px); font-size: clamp(9px, 2.7vw, 10px); letter-spacing: .03em; }
+.mini-omino { width: clamp(52px, 17vw, 78px) !important; height: auto !important; aspect-ratio: 1; }
+.testata h1 { font-size: clamp(13px, 4.2vw, 17px); }
+.blocco .nome { font-size: clamp(14px, 4.5vw, 20px); }
+.testata h1 { font-size: clamp(12px, 3.95vw, 17px); }
+.blocco .nome { font-size: clamp(13px, 4.05vw, 20px); }
