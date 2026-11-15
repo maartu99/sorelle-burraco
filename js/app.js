@@ -1,7 +1,7 @@
-import * as E from './engine.js?v=14';
-import { TEMPI, SISTEMI, TABELLE_VP, RIPOSO, CRITERI_PARITA, FONTI, RIDUZIONE_MAX, SMAZZATE_AMMESSE } from './regolamento.js?v=14';
-import { creaStore, chiaveEmail, emailValida } from './store.js?v=14';
-import { OMINO, MARCHIO, ICONE, GOOGLE, SEMI } from './grafica.js?v=14';
+import * as E from './engine.js?v=15';
+import { TEMPI, SISTEMI, TABELLE_VP, RIPOSO, CRITERI_PARITA, FONTI, RIDUZIONE_MAX, SMAZZATE_AMMESSE } from './regolamento.js?v=15';
+import { creaStore, chiaveEmail, emailValida } from './store.js?v=15';
+import { OMINO, MARCHIO, ICONE, GOOGLE, SEMI } from './grafica.js?v=15';
 
 // ================= Stato =================
 const S = {
@@ -363,13 +363,20 @@ function bandaTorneo() {
 
 function vistaTorneo() {
   if (!S.data) return `<div class="contenuto senza-nav"><p class="muto">Caricamento torneo...</p></div>`;
-  const tabs = [['turno', 'Turno', ICONE.turno], ['classifica', 'Classifica', ICONE.classifica], ['storico', 'Storico', ICONE.storico], ['gruppo', 'Gruppo', ICONE.utenti], ['altro', 'Altro', ICONE.altro]];
+  // Gruppo: coppie, giocatori, dati del torneo. Inviti: link, codice, inviti con email, ruoli.
+  const tabs = [['turno', 'Turno', ICONE.turno], ['classifica', 'Classifica', ICONE.classifica], ['storico', 'Storico', ICONE.storico], ['gruppo', 'Gruppo', ICONE.utenti], ['inviti', 'Inviti', ICONE.condividi]];
   let corpo = '';
-  if (S.tab === 'turno') corpo = S.data.status === 'setup' ? vistaSetup() : S.data.status === 'finished' ? vistaFinale() : vistaTurno();
-  else if (S.tab === 'classifica') corpo = vistaClassifica();
-  else if (S.tab === 'storico') corpo = vistaStorico();
-  else if (S.tab === 'gruppo') corpo = vistaGruppo();
-  else corpo = vistaAltro();
+  try {
+    if (S.tab === 'turno') corpo = S.data.status === 'setup' ? vistaSetup() : S.data.status === 'finished' ? vistaFinale() : vistaTurno();
+    else if (S.tab === 'classifica') corpo = vistaClassifica();
+    else if (S.tab === 'storico') corpo = vistaStorico();
+    else if (S.tab === 'gruppo') corpo = vistaAltro();
+    else corpo = vistaGruppo();
+  } catch (e) {
+    // Una pagina che va in errore non deve sembrare "morta": lo dice e mostra il motivo.
+    console.error(e);
+    corpo = avviso('Questa pagina non si apre', `Si è verificato un errore: ${esc(e && e.message ? e.message : String(e))}. Manda uno screenshot di questo messaggio.`);
+  }
   return `${testata({ sopra: isAdmin() ? 'Sorelle Burraco - admin' : 'Sorelle Burraco', titolo: S.meta.name || 'Torneo',
       sinistra: `<button class="icona-btn" data-azione="home" aria-label="Torna ai tornei">${ICONE.indietro}</button>`, destra: bottoneProfilo() })}
     <main class="contenuto">${bandaTorneo()}${corpo}</main>
@@ -637,19 +644,32 @@ function tabellaElim(cl, fine) {
     </tbody></table>`;
 }
 
+function fasePartita(et) {
+  if (/^Finale 1°/.test(et)) return 'f-oro';
+  if (/^Finale/.test(et)) return 'f-fin';
+  if (/^Semifinale|^Quarti/.test(et)) return 'f-semi';
+  if (/^Primo/.test(et)) return 'f-primo';
+  return 'f-pos';
+}
+
 function partitaTab(p) {
-  const riga = (id, l) => `<div class="tb-riga ${p.w === l ? 'vince' : p.w ? 'perde' : ''}"><span class="cresce">${nomeCoppia(id)}</span><span class="num">${p.res ? fmtN(p.res[l]) : ''}</span></div>`;
-  return `<div class="tb-partita"><span class="etichetta">${esc(p.etichetta)} - tavolo ${p.tav}</span>${riga(p.a, 'a')}${riga(p.b, 'b')}
-    ${p.w ? `<span class="tb-esito">${p.res.a === p.res.b ? 'Spareggio vinto da ' : 'Passa '}${nomeCoppia(p.w === 'a' ? p.a : p.b)}</span>` : '<span class="tb-esito muto">Da giocare</span>'}</div>`;
+  const fin = /^Finale (\d+)° e (\d+)°/.exec(p.etichetta);
+  const premio = (l) => (fin && p.w ? (p.w === l ? `${fin[1]}°` : `${fin[2]}°`) : p.w === l ? 'Passa' : '');
+  const riga = (id, l) => `<div class="tb-riga ${p.w === l ? 'vince' : p.w ? 'perde' : ''}"><span class="cresce nome">${nomeCoppia(id)}</span><span class="pt num">${p.res ? fmtN(p.res[l]) : '-'}</span>${premio(l) ? `<span class="premio">${premio(l)}</span>` : ''}</div>`;
+  return `<div class="tb-partita ${fasePartita(p.etichetta)} ${p.w ? '' : 'aperta'}"><div class="tb-testa"><span>${esc(p.etichetta)}</span><span class="tav num">T${p.tav}</span></div>
+    <div class="tb-corpo">${riga(p.a, 'a')}<span class="tb-vs">VS</span>${riga(p.b, 'b')}
+    ${p.w && p.res.a === p.res.b ? `<span class="tb-esito">Pari punti: spareggio vinto da ${nomeCoppia(p.w === 'a' ? p.a : p.b)}</span>` : ''}${p.w ? '' : '<span class="tb-esito">Da giocare</span>'}</div></div>`;
 }
 
 function vistaTabellone(t) {
   const tb = E.tabellone(t);
-  const primo = `<section class="card"><div class="testa nera"><span class="etichetta">Turno 1 - a sorte</span></div><div class="corpo tb-lista">${tb.primo.map(partitaTab).join('')}</div></section>`;
-  const sez = tb.sezioni.map((s, i) => `<section class="card"><div class="testa ${i === 0 ? 'rossa' : 'blu'}"><span class="etichetta">Si giocano il ${s.da}°-${s.a}° posto</span></div><div class="corpo">
-    ${s.blocchi.map((b) => `<div class="tb-turno"><span class="tb-n">Turno ${b.n}</span><div class="tb-lista">
-      ${b.partite ? b.partite.map(partitaTab).join('') : b.futuro.map((f) => `<div class="tb-partita futuro"><span class="etichetta">${esc(f.etichetta)}</span><span class="testo-s">Giocano ${esc(f.testo)}</span></div>`).join('')}</div></div>`).join('')}
-    </div></section>`).join('');
+  const turno = (n, interno) => `<div class="tb-turno"><div class="tb-n"><span>Turno</span><strong class="num">${n}</strong></div><div class="tb-lista">${interno}</div></div>`;
+  const primo = `<section class="tb-sezione s-primo"><div class="tb-titolo"><span class="tb-rombo"></span><span>Primo turno a sorte</span><span class="tb-tag">${tb.primo.length} tavoli</span></div>
+    ${turno(1, tb.primo.map(partitaTab).join(''))}</section>`;
+  const sez = tb.sezioni.map((s, i) => `<section class="tb-sezione ${i === 0 ? 's-alto' : 's-basso'}"><div class="tb-titolo"><span class="tb-rombo"></span><span>Si giocano il ${s.da}°-${s.a}° posto</span><span class="tb-tag">${i === 0 ? 'Il titolo' : 'L\'onore'}</span></div>
+    ${s.blocchi.map((b) => turno(b.n, b.partite ? b.partite.map(partitaTab).join('')
+      : b.futuro.map((f) => `<div class="tb-partita futuro ${fasePartita(f.etichetta)}"><div class="tb-testa"><span>${esc(f.etichetta)}</span><span class="tav">?</span></div><div class="tb-corpo"><span class="testo-s">Giocano ${esc(f.testo)}</span></div></div>`).join(''))).join('')}
+    </section>`).join('');
   return primo + sez;
 }
 
@@ -1514,7 +1534,7 @@ function instrada() {
   if (parti[0] === 'profilo') { chiudiTorneo(); S.view = 'profilo'; render(); window.scrollTo(0, 0); return; }
   if (parti[0] === 't' && parti[1]) {
     S.view = 'torneo';
-    S.tab = ['turno', 'classifica', 'storico', 'gruppo', 'altro'].includes(parti[2]) ? parti[2] : 'turno';
+    S.tab = parti[2] === 'altro' ? 'inviti' : ['turno', 'classifica', 'storico', 'gruppo', 'inviti'].includes(parti[2]) ? parti[2] : 'turno';
     apriTorneo(parti[1]);
     render();
     window.scrollTo(0, 0);
