@@ -184,7 +184,8 @@ p { margin: 0; }
 .btn.primario { background: var(--rosso); color: #fff; }
 .btn.giallo { background: var(--giallo); }
 .btn.blu { background: var(--blu); color: #fff; }
-.btn.nero { background: var(--ink); color: var(--giallo); justify-content: space-between; }
+.btn.nero { background: var(--ink); color: var(--giallo); justify-content: space-between; box-shadow: 4px 4px 0 var(--giallo); }
+.btn.nero:active:not(:disabled) { box-shadow: 1px 1px 0 var(--giallo); }
 .btn.piccolo { min-height: 42px; padding: 0 12px; font-size: 11px; border-width: 2px; box-shadow: 3px 3px 0 var(--ink); }
 .btn.blocco-w { width: 100%; }
 .btn:active:not(:disabled) { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink); }
