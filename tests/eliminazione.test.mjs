@@ -106,3 +106,16 @@ test('nessun ripescaggio con 8 coppie, nemmeno dopo le finali', () => {
   for (const n of [1, 2, 3]) assert.deepEqual(E.gruppiEliminazione(t, n).ripescate, {});
   assert.ok(E.classificaEliminazione(t).every((r) => !r.ripescata));
 });
+
+test('risultati letti da Firebase (liste diventate oggetti) restano utilizzabili', async () => {
+  const { senzaArray } = await import('../js/store.js');
+  let t = E.avviaTorneo(torneo(8));
+  const r = t.rounds[1];
+  const results = {};
+  for (const k of Object.keys(r.tables)) results[k] = { a: 1000, b: 900, mani: { a: [550, 450], b: [600, 300] } };
+  t = { ...t, rounds: { ...t.rounds, 1: { ...r, results } } };
+  const daFirebase = E.normalizza(senzaArray(JSON.parse(JSON.stringify(t))));
+  const m = daFirebase.rounds[1].results[1].mani;
+  assert.ok(Array.isArray(m.a) && Array.isArray(m.b));
+  assert.deepEqual(m.a, [550, 450]);
+});

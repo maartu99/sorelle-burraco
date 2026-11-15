@@ -1,7 +1,7 @@
-import * as E from './engine.js?v=13';
-import { TEMPI, SISTEMI, TABELLE_VP, RIPOSO, CRITERI_PARITA, FONTI, RIDUZIONE_MAX, SMAZZATE_AMMESSE } from './regolamento.js?v=13';
-import { creaStore, chiaveEmail, emailValida } from './store.js?v=13';
-import { OMINO, MARCHIO, ICONE, GOOGLE, SEMI } from './grafica.js?v=13';
+import * as E from './engine.js?v=14';
+import { TEMPI, SISTEMI, TABELLE_VP, RIPOSO, CRITERI_PARITA, FONTI, RIDUZIONE_MAX, SMAZZATE_AMMESSE } from './regolamento.js?v=14';
+import { creaStore, chiaveEmail, emailValida } from './store.js?v=14';
+import { OMINO, MARCHIO, ICONE, GOOGLE, SEMI } from './grafica.js?v=14';
 
 // ================= Stato =================
 const S = {
@@ -403,7 +403,7 @@ function aggiornaDurata() {
   if (!ora || !fine || !ini || !S.data) return;
   const inizio = /^\d{1,2}:\d{2}/.test(ora.value) ? ora.value.slice(0, 5) : S.data.config.inizio;
   const c = { ...S.data.config, inizio };
-  const nt = c.formato === 'eliminazione' ? E.turniEliminazione(nCoppiePreviste()) : c.turni;
+  const nt = c.formato === 'eliminazione' ? (nCoppiePreviste() >= 2 ? E.turniEliminazione(nCoppiePreviste()) : 3) : c.turni;
   fine.textContent = `Fine ${E.formatOra(E.cronoprogramma(c, nt).fine)}`;
   ini.textContent = inizio;
 }
@@ -421,8 +421,11 @@ function setupEliminazione() {
   const c = S.data.config;
   const n = nCoppiePreviste();
   const turni = E.turniEliminazione(n);
-  const durata = E.durataPrevista(c, turni);
-  const crono = E.cronoprogramma(c, turni);
+  const noti = n >= 2;
+  const nt = noti ? turni : 3;
+  const durata = E.durataPrevista(c, nt);
+  const crono = E.cronoprogramma(c, nt);
+  const conto = `${c.spiegazione} min di spiegazione, ${nt} turni da ${E.durataTurnoMin(c)}, ${nt - 1} cambi da ${c.cambio}, ${c.premiazione} min di premiazione`;
   return `
     ${card({ testa: 'Il torneo', testaCls: 'blu', corpo: `
       <div class="campo"><label for="cfg-nome">Nome del torneo</label><input id="cfg-nome" class="input" maxlength="80" value="${esc(S.meta.name)}"></div>
@@ -440,8 +443,9 @@ function setupEliminazione() {
       <p class="testo-s" style="margin:0">Se le vincenti sono dispari, si ripesca la perdente con più punti fatti in tutto il torneo. A pari punti al tavolo si gioca una mano di spareggio.</p>
       ${n >= 2 && n % 2 === 1 ? avviso('Coppie dispari', `Con ${n} coppie una resterebbe senza avversario: per l'eliminazione servono coppie pari.`) : ''}` })}
     ${card({ cls: 'gialla', corpo: `
-      <div class="riga spazio"><span class="etichetta">Durata prevista</span><span class="badge nero" id="dur-fine">Fine ${E.formatOra(crono.fine)}</span></div>
+      <div class="riga spazio"><span class="etichetta">Durata prevista${noti ? '' : ' con 8 coppie'}</span><span class="badge nero" id="dur-fine">Fine ${E.formatOra(crono.fine)}</span></div>
       <p class="titolo num">${E.formatDurata(durata)}</p>
+      <p class="testo-s" style="margin:0">${noti ? '' : 'Esempio con 16 persone: la durata vera si calcola dopo le presenze. '}${conto}.</p>
       <div class="tiles orari">${tile('Turno', `${E.durataTurnoMin(c)}<small>min</small>`, 'bianco')}${tile('Cambio', `${c.cambio}<small>min</small>`, 'bianco')}${tile('Inizio', esc(c.inizio), 'bianco', 'dur-inizio')}</div>` })}
     <button class="btn primario blocco-w" data-azione="salva-config">Salva e continua ${ICONE.freccia}</button>`;
 }
@@ -633,13 +637,31 @@ function tabellaElim(cl, fine) {
     </tbody></table>`;
 }
 
+function partitaTab(p) {
+  const riga = (id, l) => `<div class="tb-riga ${p.w === l ? 'vince' : p.w ? 'perde' : ''}"><span class="cresce">${nomeCoppia(id)}</span><span class="num">${p.res ? fmtN(p.res[l]) : ''}</span></div>`;
+  return `<div class="tb-partita"><span class="etichetta">${esc(p.etichetta)} - tavolo ${p.tav}</span>${riga(p.a, 'a')}${riga(p.b, 'b')}
+    ${p.w ? `<span class="tb-esito">${p.res.a === p.res.b ? 'Spareggio vinto da ' : 'Passa '}${nomeCoppia(p.w === 'a' ? p.a : p.b)}</span>` : '<span class="tb-esito muto">Da giocare</span>'}</div>`;
+}
+
+function vistaTabellone(t) {
+  const tb = E.tabellone(t);
+  const primo = `<section class="card"><div class="testa nera"><span class="etichetta">Turno 1 - a sorte</span></div><div class="corpo tb-lista">${tb.primo.map(partitaTab).join('')}</div></section>`;
+  const sez = tb.sezioni.map((s, i) => `<section class="card"><div class="testa ${i === 0 ? 'rossa' : 'blu'}"><span class="etichetta">Si giocano il ${s.da}°-${s.a}° posto</span></div><div class="corpo">
+    ${s.blocchi.map((b) => `<div class="tb-turno"><span class="tb-n">Turno ${b.n}</span><div class="tb-lista">
+      ${b.partite ? b.partite.map(partitaTab).join('') : b.futuro.map((f) => `<div class="tb-partita futuro"><span class="etichetta">${esc(f.etichetta)}</span><span class="testo-s">Giocano ${esc(f.testo)}</span></div>`).join('')}</div></div>`).join('')}
+    </div></section>`).join('');
+  return primo + sez;
+}
+
 function vistaClassificaElim(t) {
   const chiusi = E.turniChiusi(t);
-  if (!chiusi.length) return card({ testa: 'Classifica', testaCls: 'gialla', corpo: `<div class="riga"><span class="mini-omino">${OMINO}</span><p>La classifica compare dopo la chiusura del primo turno.</p></div>` });
+  const seg = `<div class="segmenti"><button class="${S.classTab !== 'elenco' ? 'attivo' : ''}" data-azione="class-tab" data-v="tabellone">Tabellone</button><button class="${S.classTab === 'elenco' ? 'attivo' : ''}" data-azione="class-tab" data-v="elenco">Classifica</button></div>`;
+  if (S.classTab !== 'elenco') return seg + vistaTabellone(t);
+  if (!chiusi.length) return seg + card({ testa: 'Classifica', testaCls: 'gialla', corpo: `<div class="riga"><span class="mini-omino">${OMINO}</span><p>La classifica compare dopo la chiusura del primo turno.</p></div>` });
   const cl = E.classificaEliminazione(t);
   const mia = miaCoppia();
   const fine = t.status === 'finished';
-  return `<div class="sezione"><h2>Classifica</h2><span class="badge ${fine ? 'giallo' : 'chiaro'}">${fine ? 'Finale' : `Dopo il turno ${chiusi[chiusi.length - 1]}`}</span></div>
+  return `${seg}<div class="sezione"><h2>Classifica</h2><span class="badge ${fine ? 'giallo' : 'chiaro'}">${fine ? 'Finale' : `Dopo il turno ${chiusi[chiusi.length - 1]}`}</span></div>
     ${tabellaElim(cl, fine)}
     <p class="muto testo-s">${fine ? 'Le posizioni vengono dalle finali.' : 'Ordine provvisorio: prima chi ha vinto di più nel tabellone, poi i punti fatti. Le posizioni definitive escono dalle finali.'} V-P = partite vinte e perse. Punti = punti fatti in tutto il torneo.</p>`;
 }
@@ -1221,6 +1243,7 @@ const azioni = {
     salva({ ...S.data, rounds: { ...S.data.rounds, [n]: { ...r, timer, inizio } } });
   },
 
+  'class-tab'(el) { S.classTab = el.dataset.v; render(); },
   'apri-risultato'(el) { apriFoglio('risultato', { turno: E.turnoCorrente(S.data), tav: el.dataset.tav, dettaglio: false }); },
   'dettaglio-smazzate'() { S.sheet.dettaglio = !S.sheet.dettaglio; const a = val('ris-a'); const b = val('ris-b'); renderFoglio(); document.getElementById('ris-a').value = a; document.getElementById('ris-b').value = b; aggiornaAnteprima(); },
   'aggiungi-partita'() { S.sheet.mani.a.push(''); S.sheet.mani.b.push(''); renderFoglio(); aggiornaAnteprima(); },
@@ -1281,7 +1304,17 @@ const azioni = {
     if (f.casella) f.cambia = !!document.getElementById('conferma-casella')?.checked;
     chiudiFoglio();
     if (f.azione === 'chiudi-turno') {
-      try { const t = E.chiudiTurno(S.data); salva(t); window.scrollTo(0, 0); } catch (e) { toast(e.message); }
+      try {
+        const t = E.chiudiTurno(S.data);
+        await salva(t);
+        if (t.status === 'running') {
+          const n = E.turnoCorrente(t);
+          const fasi = [...new Set(Object.keys(t.rounds[n].tables).map((k) => E.etichettaTavolo(t, n, k)).filter(Boolean))];
+          toast(`Turno ${n} pronto${fasi.length && E.isElim(t) ? `: ${fasi.join(', ')}` : ''}.`);
+          vai(`#/t/${S.tid}/turno`);
+        }
+        window.scrollTo(0, 0);
+      } catch (e) { toast(e.message); }
     } else if (f.azione === 'ritiro') {
       const t = E.ritiraCoppia(S.data, f.id);
       const avv = E.avvisoRiposiRitiro(t);
@@ -1516,3 +1549,8 @@ async function avvio() {
 }
 
 avvio();
+
+// Con la tastiera aperta (iPhone) la barra in basso salirebbe a metà pagina: la si nasconde.
+const conTastiera = (el) => el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') && !el.readOnly && !['checkbox', 'radio', 'button'].includes(el.type);
+document.addEventListener('focusin', (ev) => { if (conTastiera(ev.target)) document.body.classList.add('tastiera'); });
+document.addEventListener('focusout', () => { setTimeout(() => { if (!conTastiera(document.activeElement)) document.body.classList.remove('tastiera'); }, 50); });

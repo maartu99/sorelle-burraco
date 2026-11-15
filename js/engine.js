@@ -100,6 +100,10 @@ export function normalizza(t) {
     r.tables = r.tables || {};
     r.byes = r.byes || {};
     r.results = r.results || {};
+    // Firebase restituisce le liste come oggetti {0:..,1:..}: si riportano a liste.
+    for (const res of Object.values(r.results)) {
+      if (res && res.mani) res.mani = { a: Array.isArray(res.mani.a) ? res.mani.a : asList(res.mani.a), b: Array.isArray(res.mani.b) ? res.mani.b : asList(res.mani.b) };
+    }
   }
   return out;
 }
@@ -746,4 +750,53 @@ export function etichettaTavolo(t, turno, tav) {
   }
   if (turno === 1) return 'Primo turno';
   return `Per il ${pos}°-${pos + n - 1}° posto`;
+}
+
+// Tabellone ad albero del torneo a eliminazione, per la scheda Classifica.
+// { primo: [partite], sezioni: [{ titolo, da, a, blocchi: [{ n, partite } | { n, futuro: [{ etichetta, testo }] }] }] }
+export function tabellone(t) {
+  if (!isElim(t)) return null;
+  const R = t.config.turni || turniEliminazione(t.order.length);
+  const N = t.order.length;
+  const turni = Object.values(t.rounds).sort((a, b) => a.n - b.n);
+  const partite = (r) => Object.entries(r.tables).sort((a, b) => a[0] - b[0]).map(([k, tb]) => ({
+    tav: k, g: tb.g || '', etichetta: etichettaTavolo(t, r.n, k), a: tb.a, b: tb.b,
+    res: r.results[k] || null, w: vincitore(r.results[k]), chiuso: !!r.closed,
+  }));
+  const ultimo = turni[turni.length - 1];
+  // Segnaposto del turno dopo l'ultimo creato: per ogni gruppo, vincenti e perdenti.
+  const prossimo = {};
+  if (ultimo && ultimo.n < R) {
+    const ps = partite(ultimo);
+    const gruppi = [];
+    for (const p of ps) { let g = gruppi.find((x) => x.g === p.g); if (!g) { g = { g: p.g, etichetta: p.etichetta, n: 0 }; gruppi.push(g); } g.n += 2; }
+    let pos = 1;
+    for (const g of gruppi) {
+      const meta = g.n / 2;
+      for (const [suff, chi, da] of [['V', 'le vincenti', pos], ['P', 'le perdenti', pos + meta]]) {
+        const lato = (g.g + suff)[0];
+        const finale = ultimo.n + 1 === R && meta === 2;
+        const etichetta = finale ? `Finale ${da}° e ${da + 1}° posto` : da === 1 && meta === 4 ? 'Semifinali' : `Per il ${da}°-${da + meta - 1}° posto`;
+        (prossimo[lato] = prossimo[lato] || []).push({ etichetta, testo: `${chi} di "${g.etichetta}"` });
+      }
+      pos += g.n;
+    }
+  }
+  const sezioni = [];
+  for (const lato of ['V', 'P']) {
+    const da = lato === 'V' ? 1 : N / 2 + 1;
+    const a = lato === 'V' ? N / 2 : N;
+    const blocchi = [];
+    for (const r of turni.slice(1)) {
+      const ps = partite(r).filter((p) => p.g.startsWith(lato));
+      if (ps.length) blocchi.push({ n: r.n, partite: ps });
+    }
+    if (ultimo && ultimo.n < R) {
+      const sp = ultimo.n === 1 ? (prossimo[lato] || []) : (prossimo[lato] || []);
+      if (sp.length) blocchi.push({ n: ultimo.n + 1, futuro: sp });
+      for (let n = ultimo.n + 2; n <= R; n++) blocchi.push({ n, futuro: [{ etichetta: n === R ? 'Finali' : `Turno ${n}`, testo: 'si decidono dopo il turno precedente' }] });
+    }
+    sezioni.push({ titolo: `${da}°-${a}° posto`, da, a, blocchi });
+  }
+  return { primo: turni[0] ? partite(turni[0]) : [], sezioni, R };
 }
