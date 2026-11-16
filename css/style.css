@@ -476,3 +476,8 @@ body.tastiera .nav { display: none; }
 .banda span { padding-left: 0; animation: nastro 38s linear infinite; will-change: transform; }
 @keyframes nastro { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 @media (prefers-reduced-motion: reduce) { .banda span { animation: none; } }
+/* Piede della hero con i quattro semi: finisce prima del rombo verde e si stringe sui telefoni piccoli */
+.hero .piede { right: 54px; padding: 7px clamp(8px, 3vw, 14px); gap: clamp(6px, 2.6vw, 14px); font-size: clamp(8.5px, 2.6vw, 10px); letter-spacing: clamp(.02em, .3vw, .1em); }
+.hero .piede span { gap: clamp(3px, 1vw, 5px); white-space: nowrap; }
+.hero .piede svg { width: clamp(9px, 3vw, 12px); height: clamp(9px, 3vw, 12px); flex: none; }
+@media (max-width: 340px) { .hero .piede { letter-spacing: 0; gap: 5px; padding: 7px 7px; font-size: 8.5px; } .hero .piede span { gap: 2px; } }
