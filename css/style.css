@@ -481,3 +481,9 @@ body.tastiera .nav { display: none; }
 .hero .piede span { gap: clamp(3px, 1vw, 5px); white-space: nowrap; }
 .hero .piede svg { width: clamp(9px, 3vw, 12px); height: clamp(9px, 3vw, 12px); flex: none; }
 @media (max-width: 340px) { .hero .piede { letter-spacing: 0; gap: 5px; padding: 7px 7px; font-size: 8.5px; } .hero .piede span { gap: 2px; } }
+/* Blocchi Crea / Entra: icona in alto a destra, testo che parte dall'alto */
+.blocco { justify-content: flex-start; padding: 10px 10px 12px 12px !important; }
+.blocco .ico { left: auto; right: 8px; top: 8px; width: 26px; height: 26px; }
+.blocco .ico svg { width: 14px; height: 14px; }
+.blocco .nome { margin-right: 28px; font-size: clamp(12px, 3.6vw, 18px) !important; }
+@media (max-width: 350px) { .blocco { padding-top: 42px !important; } .blocco .nome { margin-right: 0; } }

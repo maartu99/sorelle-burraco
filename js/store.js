@@ -61,7 +61,7 @@ const chiaveToken = (t) => t.replace(/[.#$\[\]\/]/g, '_');
 // ================= Firebase =================
 
 async function creaStoreFirebase() {
-  const fb = await import('./vendor/firebase.js?v=24');
+  const fb = await import('./vendor/firebase.js?v=25');
   const app = fb.initializeApp(firebaseConfig);
   const auth = fb.getAuth(app);
   const db = fb.getDatabase(app);
@@ -195,9 +195,9 @@ async function creaStoreFirebase() {
     // ---- Notifiche push (inviate dal controllo automatico su GitHub)
     pushDisponibile: () => !!VAPID_KEY,
     async enablePush(user) {
-      const M = await import('./vendor/messaging.js?v=24');
+      const M = await import('./vendor/messaging.js?v=25');
       if (!(await M.isSupported())) throw new Error('Questo browser non supporta le notifiche.');
-      const reg = await navigator.serviceWorker.register('sw.js?v=24');
+      const reg = await navigator.serviceWorker.register('sw.js?v=25');
       await navigator.serviceWorker.ready;
       const token = await M.getToken(M.getMessaging(app), { vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
       if (!token) throw new Error('Il telefono non ha dato il permesso.');
@@ -208,7 +208,7 @@ async function creaStoreFirebase() {
     async disablePush(user) {
       let token = null; try { token = localStorage.getItem('sb-push-token'); } catch (e) { /* niente */ }
       if (token) await fb.remove(fb.ref(db, `users/${user.uid}/pushTokens/${chiaveToken(token)}`));
-      try { const M = await import('./vendor/messaging.js?v=24'); await M.deleteToken(M.getMessaging(app)); } catch (e) { /* già tolto */ }
+      try { const M = await import('./vendor/messaging.js?v=25'); await M.deleteToken(M.getMessaging(app)); } catch (e) { /* già tolto */ }
       try { localStorage.removeItem('sb-push-token'); } catch (e) { /* niente */ }
     },
     async pushAttiva(user) {

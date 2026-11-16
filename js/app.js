@@ -1,7 +1,7 @@
-import * as E from './engine.js?v=24';
-import { TEMPI, SISTEMI, TABELLE_VP, RIPOSO, CRITERI_PARITA, FONTI, RIDUZIONE_MAX, SMAZZATE_AMMESSE } from './regolamento.js?v=24';
-import { creaStore, chiaveEmail, emailValida } from './store.js?v=24';
-import { OMINO, MARCHIO, ICONE, GOOGLE, SEMI } from './grafica.js?v=24';
+import * as E from './engine.js?v=25';
+import { TEMPI, SISTEMI, TABELLE_VP, RIPOSO, CRITERI_PARITA, FONTI, RIDUZIONE_MAX, SMAZZATE_AMMESSE } from './regolamento.js?v=25';
+import { creaStore, chiaveEmail, emailValida } from './store.js?v=25';
+import { OMINO, MARCHIO, ICONE, GOOGLE, SEMI } from './grafica.js?v=25';
 
 // ================= Stato =================
 const S = {
@@ -292,8 +292,8 @@ function vistaHome() {
           <p class="testo-s">Coppie, tavoli e classifica della serata, in tempo reale per tutti.</p></div>
         <div class="piede"><span>${SEME.quadri}Quadri</span><span>${SEME.picche}Picche</span><span>${SEME.cuori}Cuori</span><span>${SEME.fiori}Fiori</span></div><div class="angolo"></div></section>
       <div class="azioni">
-        <button class="blocco rosso" data-azione="apri-crea"><span class="ico">${ICONE.piu}</span><span class="badge giallo">Nuovo</span><span class="nome">Crea torneo</span><span class="sub">Tavoli, coppie e turni</span></button>
-        <button class="blocco blu" data-azione="apri-entra"><span class="ico">${ICONE.chiave}</span><span class="rombo-v"></span><span class="nome">Entra con codice</span><span class="sub">Partecipa a un torneo</span></button>
+        <button class="blocco rosso" data-azione="apri-crea"><span class="ico">${ICONE.piu}</span><span class="nome">Crea torneo</span><span class="sub">Tavoli, coppie e turni</span></button>
+        <button class="blocco blu" data-azione="apri-entra"><span class="ico">${ICONE.chiave}</span><span class="nome">Entra con codice</span><span class="sub">Partecipa a un torneo</span></button>
       </div>
       ${tutti.length ? `<div class="filtri">${filtri.map(([k, t]) => `<button class="${f === k ? 'attivo' : ''}" data-azione="filtro" data-v="${k}">${t}</button>`).join('')}</div>` : ''}
       ${lista.length ? lista.map(cardTorneo).join('') : card({ cls: 'crema', corpo: `<div class="riga"><span class="mini-omino">${OMINO}</span><p>${tutti.length ? 'Nessun torneo in questo elenco.' : 'Non hai ancora tornei. Creane uno, oppure entra con il codice che ti ha mandato chi organizza.'}</p></div>` })}
@@ -1617,7 +1617,7 @@ let siglaAudio = null;
 function siglaAttiva() { try { return localStorage.getItem('sb-sigla') !== 'off'; } catch (e) { return true; } }
 function suonaSigla() {
   if (!siglaAttiva()) return;
-  siglaAudio = siglaAudio || new Audio('audio/sigla.mp3?v=24');
+  siglaAudio = siglaAudio || new Audio('audio/sigla.mp3?v=25');
   siglaAudio.volume = 0.9;
   try { siglaAudio.currentTime = 0; } catch (e) { /* non ancora caricata */ }
   siglaAudio.play().catch(() => { /* il telefono non l'ha permesso: niente musica */ });
