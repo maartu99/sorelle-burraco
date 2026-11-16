@@ -1,7 +1,7 @@
-import * as E from './engine.js?v=22';
-import { TEMPI, SISTEMI, TABELLE_VP, RIPOSO, CRITERI_PARITA, FONTI, RIDUZIONE_MAX, SMAZZATE_AMMESSE } from './regolamento.js?v=22';
-import { creaStore, chiaveEmail, emailValida } from './store.js?v=22';
-import { OMINO, MARCHIO, ICONE, GOOGLE, SEMI } from './grafica.js?v=22';
+import * as E from './engine.js?v=23';
+import { TEMPI, SISTEMI, TABELLE_VP, RIPOSO, CRITERI_PARITA, FONTI, RIDUZIONE_MAX, SMAZZATE_AMMESSE } from './regolamento.js?v=23';
+import { creaStore, chiaveEmail, emailValida } from './store.js?v=23';
+import { OMINO, MARCHIO, ICONE, GOOGLE, SEMI } from './grafica.js?v=23';
 
 // ================= Stato =================
 const S = {
@@ -197,7 +197,8 @@ function bottoneProfilo() {
 
 function banda(parti) {
   const testo = parti.map(esc).join('<i></i>');
-  return `<div class="banda" aria-hidden="true"><span>${testo}<i></i>${testo}</span></div>`;
+  const giro = (testo + '<i></i>').repeat(3);
+  return `<div class="banda" aria-hidden="true"><span>${giro}${giro}</span></div>`;
 }
 
 function tile(etichetta, valore, cls = '', id = '') {
@@ -1616,7 +1617,7 @@ let siglaAudio = null;
 function siglaAttiva() { try { return localStorage.getItem('sb-sigla') !== 'off'; } catch (e) { return true; } }
 function suonaSigla() {
   if (!siglaAttiva()) return;
-  siglaAudio = siglaAudio || new Audio('audio/sigla.mp3?v=22');
+  siglaAudio = siglaAudio || new Audio('audio/sigla.mp3?v=23');
   siglaAudio.volume = 0.9;
   try { siglaAudio.currentTime = 0; } catch (e) { /* non ancora caricata */ }
   siglaAudio.play().catch(() => { /* il telefono non l'ha permesso: niente musica */ });
