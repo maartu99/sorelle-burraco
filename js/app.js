@@ -1,7 +1,7 @@
-import * as E from './engine.js?v=20';
-import { TEMPI, SISTEMI, TABELLE_VP, RIPOSO, CRITERI_PARITA, FONTI, RIDUZIONE_MAX, SMAZZATE_AMMESSE } from './regolamento.js?v=20';
-import { creaStore, chiaveEmail, emailValida } from './store.js?v=20';
-import { OMINO, MARCHIO, ICONE, GOOGLE, SEMI } from './grafica.js?v=20';
+import * as E from './engine.js?v=21';
+import { TEMPI, SISTEMI, TABELLE_VP, RIPOSO, CRITERI_PARITA, FONTI, RIDUZIONE_MAX, SMAZZATE_AMMESSE } from './regolamento.js?v=21';
+import { creaStore, chiaveEmail, emailValida } from './store.js?v=21';
+import { OMINO, MARCHIO, ICONE, GOOGLE, SEMI } from './grafica.js?v=21';
 
 // ================= Stato =================
 const S = {
@@ -344,7 +344,7 @@ function vistaProfilo() {
       ${S.store.mode === 'prova' ? '' : card({ testa: 'Notifiche', corpo: cartaNotifiche() })}
       ${card({ testa: 'Sigla', corpo: `
         <div class="segmenti"><button class="${siglaAttiva() ? 'attivo' : ''}" data-azione="sigla" data-v="on">Sigla on</button><button class="${siglaAttiva() ? '' : 'attivo'}" data-azione="sigla" data-v="off">Sigla off</button></div>
-        <p class="muto testo-s" style="margin:0">La musica parte al primo tocco dopo l'apertura dell'app. Vale solo per te, su questo telefono.</p>` })}
+        <p class="muto testo-s" style="margin:0">La sigla suona quando entri nel profilo. Vale solo per te, su questo telefono.</p>` })}
       ${card({ testa: 'Colore dell\'app', corpo: `
         <div class="temi">${TEMI.map(([k, n, g]) => `<button class="${temaAttuale() === k ? 'attivo' : ''}" data-azione="tema" data-v="${k}" aria-label="Colore ${n}"><span class="pallino" style="background:${g}"></span>${n}</button>`).join('')}</div>
         <p class="muto testo-s" style="margin:0">Vale solo per te, su questo telefono.</p>` })}
@@ -1080,7 +1080,7 @@ const azioni = {
   async 'entra-prova'() { const n = val('prova-nome'); if (!n) return toast('Scrivi il tuo nome.'); await S.store.signInProva(n); },
   async esci() { chiudiTorneo(); await S.store.signOut(); },
 
-  profilo() { vai('#/profilo'); },
+  profilo() { suonaSigla(); vai('#/profilo'); },
   filtro(el) { S.filtro = el.dataset.v; render(); },
   async 'salva-profilo'() {
     const nome = val('profilo-nome');
@@ -1585,18 +1585,17 @@ const conTastiera = (el) => el && (el.tagName === 'INPUT' || el.tagName === 'TEX
 document.addEventListener('focusin', (ev) => { if (conTastiera(ev.target)) document.body.classList.add('tastiera'); });
 document.addEventListener('focusout', () => { setTimeout(() => { if (!conTastiera(document.activeElement)) document.body.classList.remove('tastiera'); }, 50); });
 
-// Sigla: parte una volta per apertura, al primo tocco (i telefoni non permettono l'audio prima di un tocco).
-let siglaAudio = null; let siglaFatta = false;
+// Sigla: suona solo quando si entra nel profilo, e solo se è su "Sigla on".
+// Parte dentro il tocco sul profilo, perché i telefoni bloccano l'audio senza un tocco.
+let siglaAudio = null;
 function siglaAttiva() { try { return localStorage.getItem('sb-sigla') !== 'off'; } catch (e) { return true; } }
-function suonaSigla(ev) {
-  if (siglaFatta) return;
-  if (!siglaAttiva() || (ev && ev.target && ev.target.closest && ev.target.closest('[data-azione=sigla]'))) return;
-  siglaFatta = true;
-  siglaAudio = siglaAudio || new Audio('audio/sigla.mp3?v=20');
+function suonaSigla() {
+  if (!siglaAttiva()) return;
+  siglaAudio = siglaAudio || new Audio('audio/sigla.mp3?v=21');
   siglaAudio.volume = 0.9;
-  siglaAudio.play().then(() => document.removeEventListener('pointerdown', suonaSigla, true)).catch(() => { siglaFatta = false; });
+  try { siglaAudio.currentTime = 0; } catch (e) { /* non ancora caricata */ }
+  siglaAudio.play().catch(() => { /* il telefono non l'ha permesso: niente musica */ });
 }
-document.addEventListener('pointerdown', suonaSigla, true);
 
 // Titoli e nomi scritti da voi (nome del torneo, nomi delle coppie): se una parola non sta nella riga,
 // il carattere si rimpicciolisce finché la parola sta intera. Mai lettere a capo da sole.
