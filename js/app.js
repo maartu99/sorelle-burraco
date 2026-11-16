@@ -1,7 +1,7 @@
-import * as E from './engine.js?v=25';
-import { TEMPI, SISTEMI, TABELLE_VP, RIPOSO, CRITERI_PARITA, FONTI, RIDUZIONE_MAX, SMAZZATE_AMMESSE } from './regolamento.js?v=25';
-import { creaStore, chiaveEmail, emailValida } from './store.js?v=25';
-import { OMINO, MARCHIO, ICONE, GOOGLE, SEMI } from './grafica.js?v=25';
+import * as E from './engine.js?v=26';
+import { TEMPI, SISTEMI, TABELLE_VP, RIPOSO, CRITERI_PARITA, FONTI, RIDUZIONE_MAX, SMAZZATE_AMMESSE } from './regolamento.js?v=26';
+import { creaStore, chiaveEmail, emailValida } from './store.js?v=26';
+import { OMINO, MARCHIO, ICONE, GOOGLE, SEMI } from './grafica.js?v=26';
 
 // ================= Stato =================
 const S = {
@@ -254,23 +254,24 @@ function vistaLogin() {
 // ================= Home =================
 function cardTorneo(m) {
   const data = m.data ? new Date(m.data + 'T12:00').toLocaleDateString('it-IT', { day: 'numeric', month: 'long' }) : '';
+  const breve = m.data ? new Date(m.data + 'T12:00').toLocaleDateString('it-IT', { day: 'numeric', month: 'short' }).replace('.', '') : '-';
   const ruolo = m.role === 'admin' ? 'Admin' : 'Partecipante';
-  const apri = `<button class="btn nero blocco-w" data-azione="apri-torneo" data-tid="${esc(m.tid)}"><span class="riga">${ICONE.bandiera} ${m.status === 'running' ? 'Vai al turno' : m.status === 'finished' ? 'Vedi la classifica' : 'Prepara il torneo'}</span>${ICONE.freccia}</button>`;
+  const freccia = `<span class="freccia-card" aria-hidden="true">${ICONE.freccia}</span>`;
+  const dove = m.status === 'running' ? 'Vai al turno' : m.status === 'finished' ? 'Vedi la classifica' : m.role === 'admin' ? 'Prepara il torneo' : 'Apri il torneo';
+  const link = (html) => `<a class="card-link" href="#/t/${esc(m.tid)}/turno" data-azione="apri-torneo" data-tid="${esc(m.tid)}" aria-label="${esc(m.name)}: ${dove}">${html}</a>`;
   if (m.status === 'running') {
     const segni = Array.from({ length: m.turni || 0 }, (_, i) => `<span class="${i + 1 < m.turno ? 'pieno' : i + 1 === m.turno ? 'ora' : ''}"></span>`).join('');
-    return card({ testa: `In corso - turno ${m.turno} di ${m.turni}`, testaCls: 'rossa', destra: '<span class="badge rosso">Live</span>', corpo: `
-      <div class="riga spazio"><h3 class="titolo-m" style="min-width:0;overflow-wrap:break-word">${esc(m.name)}</h3><span class="tile giallo" style="padding:6px 10px;flex:none;min-width:max-content;text-align:center"><span class="etichetta">Coppie</span><span class="val num">${m.coppie || '-'}</span></span></div>
-      <div class="tiles">${tile('Turno', `${m.turno}<small>/${m.turni}</small>`)}${tile('Data', data || '-', '', '').replace('class="val num"', 'class="val medio"')}${tile('Ruolo', ruolo).replace('class="val num"', 'class="val medio"')}</div>
-      <div class="colonna"><div class="riga spazio"><span class="testo-s">Avanzamento turni</span><span class="etichetta">${Math.round(((m.turno - 1) / (m.turni || 1)) * 100)}% completato</span></div><div class="barra-seg">${segni}</div></div>
-      ${apri}` });
+    return link(card({ testa: `In corso - turno ${m.turno} di ${m.turni}`, testaCls: 'rossa', destra: '<span class="badge rosso">Live</span>', cls: 'card-torneo', corpo: `
+      <h3 class="titolo-m">${esc(m.name)}</h3>
+      <div class="tiles">${tile('Coppie', m.coppie || '-')}${tile('Data', breve).replace('class="val num"', 'class="val medio"')}${tile('Ruolo', ruolo).replace('class="val num"', 'class="val medio"')}</div>
+      <div class="riga piede-card"><div class="barra-seg cresce">${segni}</div><span class="etichetta">${Math.round(((m.turno - 1) / (m.turni || 1)) * 100)}% completato</span>${freccia}</div>` }));
   }
   if (m.status === 'finished') {
-    return card({ testa: `Concluso${data ? ` - ${data}` : ''}`, destra: '<span class="badge nero">Archivio</span>', corpo: `
-      <h3 class="titolo-m">${esc(m.name)}</h3><p class="muto testo-s">${m.coppie || 0} coppie - ${m.turni} turni - ${ruolo}</p>${apri}` });
+    return link(card({ testa: `Concluso${data ? ` - ${data}` : ''}`, destra: '<span class="badge nero">Archivio</span>', cls: 'card-torneo', corpo: `
+      <h3 class="titolo-m">${esc(m.name)}</h3><div class="riga piede-card"><p class="muto testo-s cresce">${m.coppie || 0} coppie - ${m.turni} turni - ${ruolo}</p>${freccia}</div>` }));
   }
-  return card({ testa: `Da iniziare${data ? ` - ${data}` : ''}`, testaCls: 'blu', destra: `<span class="badge giallo">${ruolo}</span>`, cls: 'blu', corpo: `
-    <h3 class="titolo-m">${esc(m.name)}</h3><p class="muto testo-s">${m.coppie ? `${m.coppie} coppie` : 'Presenze e coppie da preparare'}</p>
-    <button class="btn giallo blocco-w" data-azione="apri-torneo" data-tid="${esc(m.tid)}">${m.role === 'admin' ? 'Prepara il torneo' : 'Apri il torneo'} ${ICONE.freccia}</button>` });
+  return link(card({ testa: `Da iniziare${data ? ` - ${data}` : ''}`, testaCls: 'blu', destra: `<span class="badge giallo">${ruolo}</span>`, cls: 'blu card-torneo', corpo: `
+    <h3 class="titolo-m">${esc(m.name)}</h3><div class="riga piede-card"><p class="muto testo-s cresce">${m.coppie ? `${m.coppie} coppie` : 'Presenze e coppie da preparare'}</p>${freccia}</div>` }));
 }
 
 function vistaHome() {
@@ -837,6 +838,8 @@ function vistaAltro() {
   const giocatori = Object.entries(t.players).sort((a, b) => a[1].name.localeCompare(b[1].name, 'it'));
   const attive = t.status === 'running' ? E.coppieAttive(t, E.turnoCorrente(t)) : [];
   return `
+    ${adm ? card({ testa: 'Nome del torneo', corpo: `
+      <div class="riga spazio"><strong class="cresce nome-torneo">${esc(S.meta.name || 'Torneo')}</strong><button class="btn piccolo" data-azione="apri-rinomina-torneo">${ICONE.matita} Rinomina</button></div>` }) : ''}
     ${card({ testa: 'Chi sei?', corpo: `
       <p class="testo-s muto">Scegli il tuo nome per vedere evidenziati il tuo tavolo e la tua coppia.</p>
       <select class="input" data-campo="mio-player" id="mio-player"><option value="">Non gioco / non indicato</option>
@@ -945,6 +948,11 @@ function renderFoglio() {
       <div class="campo"><label for="rin-nome">Nome e cognome</label><input id="rin-nome" class="input" maxlength="40" value="${esc(pl?.name || '')}" autocomplete="off"></div>
       <p class="muto testo-s">Cambia solo il nome: coppie, risultati e classifica restano uguali.</p>
       <div class="griglia-2"><button class="btn" data-azione="chiudi-foglio">Annulla</button><button class="btn primario" data-azione="salva-rinomina">Salva</button></div>`;
+  } else if (f.tipo === 'rinomina-torneo') {
+    c = `<h2 class="titolo-m">Rinomina torneo</h2>
+      <div class="campo"><label for="rin-torneo">Nome del torneo</label><input id="rin-torneo" class="input" maxlength="80" value="${esc(S.meta.name || '')}" autocomplete="off"></div>
+      <p class="muto testo-s">Cambia solo il nome: coppie, turni e risultati restano uguali. Il nuovo nome lo vedono subito tutti.</p>
+      <div class="griglia-2"><button class="btn" data-azione="chiudi-foglio">Annulla</button><button class="btn primario" data-azione="salva-rinomina-torneo">Salva</button></div>`;
   } else if (f.tipo === 'soprannome') {
     const pr = S.data.pairs[f.id];
     c = `<h2 class="titolo-m">Soprannome della coppia</h2><p>${nomiCoppia(f.id)}</p>
@@ -1439,6 +1447,14 @@ const azioni = {
   'apri-rinomina'(el) { apriFoglio('rinomina', { pid: el.dataset.pid }); },
   'apri-soprannome'(el) { apriFoglio('soprannome', { id: el.dataset.id }); },
   'apri-sostituisci'(el) { apriFoglio('sostituisci', { id: el.dataset.id, pid: el.dataset.pid }); },
+  'apri-rinomina-torneo'() { apriFoglio('rinomina-torneo', {}); },
+  async 'salva-rinomina-torneo'() {
+    const nome = val('rin-torneo');
+    if (!nome) return toast('Scrivi un nome.');
+    if (!isAdmin()) return toast('Solo gli admin possono cambiare il nome.');
+    chiudiFoglio();
+    try { await S.store.updateMeta(S.tid, { name: nome }); toast('Nome del torneo aggiornato.'); } catch (e) { toast(erroreLeggibile(e)); }
+  },
   'salva-rinomina'() {
     const f = S.sheet; const nome = val('rin-nome');
     if (!nome) return toast('Scrivi un nome.');
@@ -1531,6 +1547,7 @@ document.addEventListener('keydown', (ev) => {
   if (ev.key === 'Enter' && ev.target.id === 'entra-codice') azioni.entra();
   if (ev.key === 'Enter' && ev.target.id === 'crea-nome') azioni.crea();
   if (ev.key === 'Enter' && ev.target.id === 'rin-nome') azioni['salva-rinomina']();
+  if (ev.key === 'Enter' && ev.target.id === 'rin-torneo') azioni['salva-rinomina-torneo']();
   if (ev.key === 'Enter' && ev.target.id === 'nick') azioni['salva-soprannome']();
   if (ev.key === 'Escape' && S.sheet) chiudiFoglio();
 });
@@ -1617,7 +1634,7 @@ let siglaAudio = null;
 function siglaAttiva() { try { return localStorage.getItem('sb-sigla') !== 'off'; } catch (e) { return true; } }
 function suonaSigla() {
   if (!siglaAttiva()) return;
-  siglaAudio = siglaAudio || new Audio('audio/sigla.mp3?v=25');
+  siglaAudio = siglaAudio || new Audio('audio/sigla.mp3?v=26');
   siglaAudio.volume = 0.9;
   try { siglaAudio.currentTime = 0; } catch (e) { /* non ancora caricata */ }
   siglaAudio.play().catch(() => { /* il telefono non l'ha permesso: niente musica */ });

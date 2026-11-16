@@ -85,6 +85,9 @@ async def main():
             for t in ['turno','classifica','storico']:
                 await pg.click(f'[data-azione=tab][data-tab={t}]'); await chk('punti ' + t)
             await pg.click('[data-azione=home]'); await pg.wait_for_timeout(300); await chk('home con due tornei')
+            if w in (320,393) and NOME_T=='Eliminazione':
+                print(w, 'altezze card:', await pg.evaluate("[...document.querySelectorAll('.card-link .card')].map(c=>Math.round(c.getBoundingClientRect().height))"))
+                await pg.screenshot(path=f'/home/claude/shots/home_card_{w}.png', full_page=True)
             await pg.close()
         await b.close()
     print('PROBLEMI TOTALI:', tot)
