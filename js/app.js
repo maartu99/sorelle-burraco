@@ -1,7 +1,7 @@
-import * as E from './engine.js?v=21';
-import { TEMPI, SISTEMI, TABELLE_VP, RIPOSO, CRITERI_PARITA, FONTI, RIDUZIONE_MAX, SMAZZATE_AMMESSE } from './regolamento.js?v=21';
-import { creaStore, chiaveEmail, emailValida } from './store.js?v=21';
-import { OMINO, MARCHIO, ICONE, GOOGLE, SEMI } from './grafica.js?v=21';
+import * as E from './engine.js?v=22';
+import { TEMPI, SISTEMI, TABELLE_VP, RIPOSO, CRITERI_PARITA, FONTI, RIDUZIONE_MAX, SMAZZATE_AMMESSE } from './regolamento.js?v=22';
+import { creaStore, chiaveEmail, emailValida } from './store.js?v=22';
+import { OMINO, MARCHIO, ICONE, GOOGLE, SEMI } from './grafica.js?v=22';
 
 // ================= Stato =================
 const S = {
@@ -854,6 +854,10 @@ function vistaAltro() {
       </div></section>`;
     }).join('')}</div>
     <p class="muto testo-s">Sostituzione: secondo il codice di gara è ammessa una sola volta per coppia, ed è consentito solo il ritorno del giocatore titolare. Ritiro: i risultati giocati restano validi, chi doveva incontrare la coppia riceve il riposo.</p>` : ''}
+    ${adm && Object.keys(t.players || {}).length ? card({ testa: 'Nuovo torneo con gli stessi giocatori', corpo: `
+      <p class="testo-s" style="margin:0">Crea un torneo nuovo con tutti i giocatori di questo (${Object.keys(t.players).length}), già segnati come presenti. Le coppie le formi da capo (manuali, casuali o miste) e scegli di nuovo il formato: eliminazione o punti, smazzate, minuti. Questo torneo resta com'è.</p>
+      <p class="muto testo-s" style="margin:0">Nel nuovo torneo l'admin sei tu: gli altri admin vanno invitati con il nuovo codice.</p>
+      <button class="btn blocco-w" data-azione="apri-duplica">${ICONE.piu} Crea con questi giocatori</button>` }) : ''}
     ${card({ testa: 'Dati', corpo: `
       <button class="btn blocco-w" data-azione="esporta">${ICONE.scarica} Esporta il torneo (JSON)</button>
       ${adm ? `<button class="btn primario blocco-w" data-azione="apri-elimina">${ICONE.cestino} Elimina il torneo</button>` : `<button class="btn blocco-w" data-azione="lascia">Togli dai miei tornei</button>`}` })}`;
@@ -890,6 +894,13 @@ function renderFoglio() {
       <div class="campo"><label for="crea-nome">Nome del torneo</label><input id="crea-nome" class="input" maxlength="80" placeholder="Es. Burraco del sabato"></div>
       <div class="campo"><label for="crea-data">Data</label><input id="crea-data" class="input" type="date" value="${new Date().toISOString().slice(0, 10)}"></div>
       <button class="btn primario blocco-w" data-azione="crea">Crea torneo ${ICONE.freccia}</button>`;
+  } else if (f.tipo === 'duplica') {
+    const n = Object.keys(S.data.players || {}).length;
+    c = `<h2 class="titolo">Nuovo torneo</h2>
+      <p style="margin:0">Con gli stessi ${n} giocatori di <strong>${esc(S.meta.name || '')}</strong>.</p>
+      <div class="campo"><label for="crea-nome">Nome del nuovo torneo</label><input id="crea-nome" class="input" maxlength="80" value="${esc(nomeSeguente(S.meta.name || 'Torneo'))}"></div>
+      <div class="campo"><label for="crea-data">Data</label><input id="crea-data" class="input" type="date" value="${new Date().toISOString().slice(0, 10)}"></div>
+      <button class="btn primario blocco-w" data-azione="duplica">Crea torneo ${ICONE.freccia}</button>`;
   } else if (f.tipo === 'entra') {
     c = `<h2 class="titolo">Entra con codice</h2>
       <div class="campo"><label for="entra-codice">Codice invito</label><input id="entra-codice" class="input grande" maxlength="7" placeholder="SB-XXXX" autocapitalize="characters" autocomplete="off" value="${esc(f.codice || '')}"></div>
@@ -1100,6 +1111,20 @@ const azioni = {
       const tid = await S.store.createTournament(S.user, nome, t);
       await S.store.updateMeta(tid, { data });
       chiudiFoglio(); vai(`#/t/${tid}/turno`);
+    } catch (e) { toast(erroreLeggibile(e)); }
+  },
+  'apri-duplica'() { apriFoglio('duplica'); },
+  async duplica() {
+    const nome = val('crea-nome'); const data = val('crea-data');
+    if (!nome) return toast('Dai un nome al torneo.');
+    const t = E.nuovoTorneo(); t.config.data = data;
+    // Solo i giocatori (nome), tutti presenti. Niente coppie, turni, regole o persone dell'app.
+    for (const [pid, p] of Object.entries(S.data.players || {})) t.players[pid] = { name: p.name, present: true };
+    try {
+      const tid = await S.store.createTournament(S.user, nome, t);
+      await S.store.updateMeta(tid, { data });
+      chiudiFoglio(); vai(`#/t/${tid}/turno`);
+      toast(`Torneo creato con ${Object.keys(t.players).length} giocatori. Ora scegli il formato e forma le coppie.`);
     } catch (e) { toast(erroreLeggibile(e)); }
   },
   async entra() {
@@ -1591,7 +1616,7 @@ let siglaAudio = null;
 function siglaAttiva() { try { return localStorage.getItem('sb-sigla') !== 'off'; } catch (e) { return true; } }
 function suonaSigla() {
   if (!siglaAttiva()) return;
-  siglaAudio = siglaAudio || new Audio('audio/sigla.mp3?v=21');
+  siglaAudio = siglaAudio || new Audio('audio/sigla.mp3?v=22');
   siglaAudio.volume = 0.9;
   try { siglaAudio.currentTime = 0; } catch (e) { /* non ancora caricata */ }
   siglaAudio.play().catch(() => { /* il telefono non l'ha permesso: niente musica */ });
@@ -1613,3 +1638,9 @@ function adattaTesti(radice) {
   }
 }
 window.addEventListener('resize', () => { adattaTesti(document.body); });
+
+// "Eliminazione" -> "Eliminazione 2", "Eliminazione 2" -> "Eliminazione 3"
+function nomeSeguente(nome) {
+  const m = /^(.*?)\s+(\d+)$/.exec(nome.trim());
+  return m ? `${m[1]} ${Number(m[2]) + 1}` : `${nome.trim()} 2`;
+}
