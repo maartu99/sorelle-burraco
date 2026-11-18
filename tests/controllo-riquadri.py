@@ -66,6 +66,7 @@ async def main():
             await pg.click('[data-azione=apri-chiudi-turno]'); await pg.click('[data-azione=conferma-ok]'); await pg.wait_for_timeout(400); await chk('turno 2')
             for t in ['classifica','storico','gruppo','inviti']:
                 await pg.click(f'[data-azione=tab][data-tab={t}]'); await chk(t)
+                if t=='storico' and NOME_T=='Eliminazione' and w in (320,393): await pg.locator('.hero').screenshot(path=f'/home/claude/shots/storico_{w}.png')
             await pg.click('[data-azione=tab][data-tab=classifica]'); await pg.click('[data-azione=class-tab][data-v=elenco]'); await chk('classifica elenco')
             await pg.click('[data-azione=home]'); await pg.wait_for_timeout(300); await chk('home con torneo in corso')
             await pg.goto('http://localhost:8765/index.html#/profilo'); await chk('profilo')

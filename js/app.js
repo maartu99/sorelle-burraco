@@ -1,7 +1,7 @@
-import * as E from './engine.js?v=26';
-import { TEMPI, SISTEMI, TABELLE_VP, RIPOSO, CRITERI_PARITA, FONTI, RIDUZIONE_MAX, SMAZZATE_AMMESSE } from './regolamento.js?v=26';
-import { creaStore, chiaveEmail, emailValida } from './store.js?v=26';
-import { OMINO, MARCHIO, ICONE, GOOGLE, SEMI } from './grafica.js?v=26';
+import * as E from './engine.js?v=27';
+import { TEMPI, SISTEMI, TABELLE_VP, RIPOSO, CRITERI_PARITA, FONTI, RIDUZIONE_MAX, SMAZZATE_AMMESSE } from './regolamento.js?v=27';
+import { creaStore, chiaveEmail, emailValida } from './store.js?v=27';
+import { OMINO, MARCHIO, ICONE, GOOGLE, SEMI } from './grafica.js?v=27';
 
 // ================= Stato =================
 const S = {
@@ -251,6 +251,8 @@ function vistaLogin() {
     <p class="piede-pagina">Sorelle Burraco - tornei tra amici</p></div>`;
 }
 
+const SEMI_PIEDE = `<span>${SEME.quadri}Quadri</span><span>${SEME.picche}Picche</span><span>${SEME.cuori}Cuori</span><span>${SEME.fiori}Fiori</span>`;
+
 // ================= Home =================
 function cardTorneo(m) {
   const data = m.data ? new Date(m.data + 'T12:00').toLocaleDateString('it-IT', { day: 'numeric', month: 'long' }) : '';
@@ -291,7 +293,7 @@ function vistaHome() {
         <div class="testo"><span class="badge rosso" style="align-self:flex-start">Ciao ${esc(S.user.name)}</span>
           <h2 class="titolo">I miei<br><span class="rosso-t">tornei</span></h2>
           <p class="testo-s">Coppie, tavoli e classifica della serata, in tempo reale per tutti.</p></div>
-        <div class="piede"><span>${SEME.quadri}Quadri</span><span>${SEME.picche}Picche</span><span>${SEME.cuori}Cuori</span><span>${SEME.fiori}Fiori</span></div><div class="angolo"></div></section>
+        <div class="piede">${SEMI_PIEDE}</div><div class="angolo"></div></section>
       <div class="azioni">
         <button class="blocco rosso" data-azione="apri-crea"><span class="ico">${ICONE.piu}</span><span class="nome">Crea torneo</span><span class="sub">Tavoli, coppie e turni</span></button>
         <button class="blocco blu" data-azione="apri-entra"><span class="ico">${ICONE.chiave}</span><span class="nome">Entra con codice</span><span class="sub">Partecipa a un torneo</span></button>
@@ -396,7 +398,7 @@ function vistaSetup() {
     const conf = Object.keys(S.data.pairs).length;
     return `<section class="hero"><div class="arte"><div class="diag"></div><div class="rossa"></div>${OMINO}</div>
         <div class="testo"><span class="badge blu" style="align-self:flex-start">In preparazione</span><h2 class="titolo-m">Il torneo sta per iniziare</h2>
-        <p class="testo-s">Qui compariranno tavoli, timer e risultati.</p></div><div class="piede"><span>${SEME.fiori}Fiori</span><span>${SEME.cuori}Cuori</span></div><div class="angolo"></div></section>
+        <p class="testo-s">Qui compariranno tavoli, timer e risultati.</p></div><div class="piede">${SEMI_PIEDE}</div><div class="angolo"></div></section>
       <div class="tiles due">${tile('Giocatori presenti', pres, 'giallo')}${tile('Coppie', conf || '-')}</div>
       ${conf ? `<div class="sezione"><h2>Coppie</h2></div>${elencoCoppie()}` : ''}`;
   }
@@ -724,8 +726,8 @@ function vistaFinale() {
   const podio = [cl[1], cl[0], cl[2]];
   const g = (r, cls, posto) => (r ? `<div class="gradino ${cls}"><span class="posto">${posto}</span><strong class="chi">${nomeCoppia(r.id)}</strong>${sottoNomi(r.id, 'span')}<span class="num">${elim ? `<strong>${fmtN(r.fatti)}</strong> punti` : `<strong>${r.vp}</strong> V.P.`}</span></div>` : '<div></div>');
   return `<section class="hero"><div class="arte"><div class="diag"></div><div class="rossa"></div>${OMINO}</div>
-      <div class="testo"><span class="badge rosso" style="align-self:flex-start">Classifica finale</span><h2 class="titolo-m">Torneo<br><span class="rosso-t">concluso</span></h2></div>
-      <div class="piede"><span>${SEME.cuori}Cuori</span><span>${SEME.quadri}Quadri</span></div><div class="angolo"></div></section>
+      <div class="testo"><span class="badge rosso" style="align-self:flex-start">Classifica finale</span><h2 class="titolo-m">Torneo<br><span class="rosso-t">concluso</span></h2><p class="testo-s">Podio, classifica finale e risultati di tutta la serata.</p></div>
+      <div class="piede">${SEMI_PIEDE}</div><div class="angolo"></div></section>
     <div class="podio${podio[2] ? "" : " due"}">${g(podio[0], 'g2', '2°')}${g(podio[1], 'g1', '1°')}${g(podio[2], 'g3', '3°')}</div>
     ${elim ? tabellaElim(cl, true) : tabellaClassifica(cl)}
     <div class="griglia-2"><button class="btn giallo" data-azione="condividi-classifica">${ICONE.condividi} Condividi</button>
@@ -736,8 +738,8 @@ function vistaFinale() {
 function vistaStorico() {
   const t = S.data;
   const hero = `<section class="hero" style="min-height:190px"><div class="arte"><div class="diag"></div><div class="rossa"></div>${OMINO}</div>
-    <div class="testo"><span class="badge rosso" style="align-self:flex-start">Registro</span><h2 class="titolo-m">Storico<br><span class="rosso-t">e regole</span></h2></div>
-    <div class="piede"><span>${SEME.quadri}Quadri</span><span>${SEME.picche}Picche</span></div><div class="angolo"></div></section>`;
+    <div class="testo"><span class="badge rosso" style="align-self:flex-start">Registro</span><h2 class="titolo-m">Storico<br><span class="rosso-t">e regole</span></h2><p class="testo-s">I turni giocati con i risultati di ogni tavolo, e le regole del torneo.</p></div>
+    <div class="piede">${SEMI_PIEDE}</div><div class="angolo"></div></section>`;
   const seg = `<div class="segmenti"><button class="${S.storicoTab === 'storico' ? 'attivo' : ''}" data-azione="storico-tab" data-v="storico">Storico partite</button><button class="${S.storicoTab === 'regolamento' ? 'attivo' : ''}" data-azione="storico-tab" data-v="regolamento">Regolamento</button></div>`;
   if (S.storicoTab === 'regolamento') return hero + seg + vistaRegolamento();
   const sm = t.config.smazzate;
@@ -1634,7 +1636,7 @@ let siglaAudio = null;
 function siglaAttiva() { try { return localStorage.getItem('sb-sigla') !== 'off'; } catch (e) { return true; } }
 function suonaSigla() {
   if (!siglaAttiva()) return;
-  siglaAudio = siglaAudio || new Audio('audio/sigla.mp3?v=26');
+  siglaAudio = siglaAudio || new Audio('audio/sigla.mp3?v=27');
   siglaAudio.volume = 0.9;
   try { siglaAudio.currentTime = 0; } catch (e) { /* non ancora caricata */ }
   siglaAudio.play().catch(() => { /* il telefono non l'ha permesso: niente musica */ });
